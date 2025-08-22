@@ -20,8 +20,3 @@
 # Configurações de segurança
 [context.production.environment]
   # As variáveis de ambiente serão configuradas no painel do Netlify
-  
-# Ignorar arquivos específicos do secrets scanning
-[build.ignore]
-  # Ignorar arquivos de exemplo e documentação
-  command = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- README.md .env.example"

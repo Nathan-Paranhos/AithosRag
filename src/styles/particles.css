@@ -1,0 +1,289 @@
+/* Estilos para o sistema de partículas */
+
+.particle-canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  background: transparent;
+  transition: all 0.3s ease;
+}
+
+/* Container para o canvas de partículas */
+.particle-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.05) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Efeitos de brilho para o container */
+.particle-container.glow-effect {
+  box-shadow: 
+    0 0 20px rgba(59, 130, 246, 0.3),
+    0 0 40px rgba(59, 130, 246, 0.2),
+    inset 0 0 20px rgba(59, 130, 246, 0.1);
+}
+
+/* Animação de pulsação para o container */
+.particle-container.pulse {
+  animation: particlePulse 3s ease-in-out infinite;
+}
+
+@keyframes particlePulse {
+  0%, 100% {
+    box-shadow: 
+      0 0 20px rgba(59, 130, 246, 0.3),
+      0 0 40px rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 0 30px rgba(59, 130, 246, 0.5),
+      0 0 60px rgba(59, 130, 246, 0.3);
+  }
+}
+
+/* Overlay para efeitos adicionais */
+.particle-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at center,
+    transparent 0%,
+    transparent 60%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+}
+
+/* Controles de animação */
+.particle-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  border-radius: 25px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 10;
+}
+
+.particle-control-btn {
+  padding: 8px 16px;
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 20px;
+  color: #3b82f6;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+}
+
+.particle-control-btn:hover {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #60a5fa;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.particle-control-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
+}
+
+.particle-control-btn.active {
+  background: rgba(59, 130, 246, 0.4);
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+}
+
+.particle-control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.particle-control-btn:disabled:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #3b82f6;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Indicador de status */
+.particle-status {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 10;
+}
+
+.particle-status.animating {
+  border-color: rgba(34, 197, 94, 0.5);
+  color: #22c55e;
+}
+
+.particle-status.forming {
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #3b82f6;
+}
+
+.particle-status.dispersing {
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+}
+
+/* Efeitos de loading */
+.particle-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #3b82f6;
+  font-size: 16px;
+  font-weight: 500;
+  z-index: 5;
+}
+
+.particle-loading::before {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-top: 2px solid #3b82f6;
+  border-radius: 50%;
+  animation: particleSpinner 1s linear infinite;
+}
+
+@keyframes particleSpinner {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .particle-controls {
+    bottom: 10px;
+    padding: 8px 16px;
+    gap: 8px;
+  }
+  
+  .particle-control-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  .particle-status {
+    top: 10px;
+    right: 10px;
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .particle-controls {
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .particle-control-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* Temas alternativos */
+.particle-container.theme-dark {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.1) 100%);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.particle-container.theme-light {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.particle-container.theme-neon {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.particle-container.theme-neon.glow-effect {
+  box-shadow: 
+    0 0 20px rgba(16, 185, 129, 0.4),
+    0 0 40px rgba(59, 130, 246, 0.3),
+    inset 0 0 20px rgba(16, 185, 129, 0.1);
+}
+
+/* Animações de entrada */
+.particle-canvas.fade-in {
+  animation: particleFadeIn 1s ease-out;
+}
+
+@keyframes particleFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.particle-canvas.slide-up {
+  animation: particleSlideUp 0.8s ease-out;
+}
+
+@keyframes particleSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Efeitos de hover para interatividade */
+.particle-container:hover {
+  transform: scale(1.02);
+  transition: transform 0.3s ease;
+}
+
+.particle-container:hover.glow-effect {
+  box-shadow: 
+    0 0 30px rgba(59, 130, 246, 0.4),
+    0 0 60px rgba(59, 130, 246, 0.3),
+    inset 0 0 30px rgba(59, 130, 246, 0.15);
+}

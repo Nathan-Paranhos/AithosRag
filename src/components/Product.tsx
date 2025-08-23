@@ -183,11 +183,20 @@ Sempre responda em português brasileiro de forma clara, profissional e útil. Q
             content: currentInput
           }
         ],
-        model: 'llama3-8b-8192',
-        temperature: 0.7,
-        max_tokens: 1024,
+        model: 'openai/gpt-oss-120b',
+        temperature: 1,
+        max_completion_tokens: 8192,
         top_p: 1,
         stream: true,
+        reasoning_effort: 'high',
+        tools: [
+          {
+            type: 'code_interpreter'
+          },
+          {
+            type: 'browser_search'
+          }
+        ],
         stop: null
       });
 

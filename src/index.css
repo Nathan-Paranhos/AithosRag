@@ -1,0 +1,179 @@
+/* Import optimized animations */
+@import './styles/animations.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design System CSS Variables */
+:root {
+  /* Light theme colors */
+  --background: 250 250 250;
+  --foreground: 9 9 11;
+  --card: 255 255 255;
+  --card-foreground: 9 9 11;
+  --popover: 255 255 255;
+  --popover-foreground: 9 9 11;
+  --primary: 14 165 233;
+  --primary-foreground: 240 249 255;
+  --secondary: 244 244 245;
+  --secondary-foreground: 39 39 42;
+  --muted: 244 244 245;
+  --muted-foreground: 113 113 122;
+  --accent: 244 244 245;
+  --accent-foreground: 39 39 42;
+  --destructive: 239 68 68;
+  --destructive-foreground: 254 242 242;
+  --border: 228 228 231;
+  --input: 228 228 231;
+  --ring: 14 165 233;
+  --radius: 0.5rem;
+}
+
+.dark {
+  /* Dark theme colors */
+  --background: 9 9 11;
+  --foreground: 250 250 250;
+  --card: 9 9 11;
+  --card-foreground: 250 250 250;
+  --popover: 9 9 11;
+  --popover-foreground: 250 250 250;
+  --primary: 14 165 233;
+  --primary-foreground: 9 9 11;
+  --secondary: 39 39 42;
+  --secondary-foreground: 250 250 250;
+  --muted: 39 39 42;
+  --muted-foreground: 161 161 170;
+  --accent: 39 39 42;
+  --accent-foreground: 250 250 250;
+  --destructive: 239 68 68;
+  --destructive-foreground: 254 242 242;
+  --border: 39 39 42;
+  --input: 39 39 42;
+  --ring: 14 165 233;
+}
+
+/* Base styles */
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Custom font family */
+* {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-delay {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out;
+}
+
+.animate-fade-in-delay {
+  animation: fade-in-delay 0.8s ease-out 0.2s both;
+}
+
+/* Custom gradient backgrounds */
+.gradient-primary {
+  background: linear-gradient(135deg, #007BFF 0%, #28A745 100%);
+}
+
+.gradient-secondary {
+  background: linear-gradient(135deg, #F8F9FA 0%, #E9ECEF 100%);
+}
+
+/* Custom hover effects */
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Loading states */
+.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Focus styles for accessibility */
+.focus\:ring-primary:focus {
+  --tw-ring-color: #007BFF;
+}
+
+
+/* Button styles */
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105;
+}
+
+
+/* Card styles */
+.card {
+  @apply bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2;
+}
+
+/* Text styles */
+.text-hero {
+  @apply text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight;
+}
+
+.text-section-title {
+  @apply text-3xl md:text-4xl font-bold text-gray-900 mb-6;
+}
+
+.text-body {
+  @apply text-lg text-gray-600 leading-relaxed;
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+  .text-hero {
+    @apply text-3xl;
+  }
+  
+  .text-section-title {
+    @apply text-2xl;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

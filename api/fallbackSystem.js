@@ -7,13 +7,182 @@ class FallbackSystem extends EventEmitter {
     this.loadBalancer = loadBalancer;
     this.fallbackChains = new Map();
     this.modelFailures = new Map();
+    this.serviceFailures = new Map(); // Track microservice failures
     this.maxRetries = 3;
     this.failureThreshold = 5;
     this.recoveryTime = 300000; // 5 minutos
     this.isEnabled = true;
     
     this.initializeFallbackChains();
+    this.initializeServiceFallbacks();
     this.startRecoveryMonitor();
+  }
+
+  initializeServiceFallbacks() {
+    // Initialize microservice fallback tracking
+    const services = ['auth', 'chat', 'analytics', 'user', 'notification', 'file'];
+    
+    services.forEach(service => {
+      this.serviceFailures.set(service, {
+        count: 0,
+        lastFailure: null,
+        isDown: false,
+        consecutiveFailures: 0,
+        lastSuccessfulCall: new Date()
+      });
+    });
+  }
+
+  // Microservice fallback methods
+  async executeServiceWithFallback(serviceName, operation, fallbackResponse = null) {
+    const serviceStatus = this.serviceFailures.get(serviceName);
+    
+    if (!serviceStatus) {
+      throw new Error(`Unknown service: ${serviceName}`);
+    }
+
+    // If service is marked as down, return fallback immediately
+    if (serviceStatus.isDown && fallbackResponse) {
+      console.log(`[ServiceFallback] Service ${serviceName} is down, using fallback`);
+      return this.createFallbackResponse(serviceName, fallbackResponse);
+    }
+
+    try {
+      const result = await operation();
+      
+      // Success - reset failure counters
+      this.resetServiceFailures(serviceName);
+      
+      this.emit('service_success', {
+        serviceName,
+        timestamp: new Date()
+      });
+      
+      return result;
+      
+    } catch (error) {
+      console.error(`[ServiceFallback] Service ${serviceName} failed:`, error.message);
+      
+      // Record failure
+      this.recordServiceFailure(serviceName, error);
+      
+      // Return fallback if available
+      if (fallbackResponse) {
+        return this.createFallbackResponse(serviceName, fallbackResponse, error);
+      }
+      
+      throw error;
+    }
+  }
+
+  recordServiceFailure(serviceName, error) {
+    const failure = this.serviceFailures.get(serviceName);
+    if (!failure) return;
+    
+    failure.count++;
+    failure.consecutiveFailures++;
+    failure.lastFailure = new Date();
+    
+    // Mark service as down if too many consecutive failures
+    if (failure.consecutiveFailures >= this.failureThreshold) {
+      failure.isDown = true;
+      console.warn(`[ServiceFallback] Service ${serviceName} marked as DOWN after ${failure.consecutiveFailures} consecutive failures`);
+      
+      this.emit('service_down', {
+        serviceName,
+        failureCount: failure.count,
+        consecutiveFailures: failure.consecutiveFailures,
+        error: error.message
+      });
+    }
+    
+    this.emit('service_failure', {
+      serviceName,
+      error: error.message,
+      consecutiveFailures: failure.consecutiveFailures
+    });
+  }
+
+  resetServiceFailures(serviceName) {
+    const failure = this.serviceFailures.get(serviceName);
+    if (failure) {
+      failure.consecutiveFailures = 0;
+      failure.isDown = false;
+      failure.lastSuccessfulCall = new Date();
+    }
+  }
+
+  createFallbackResponse(serviceName, fallbackData, error = null) {
+    const response = {
+      success: true,
+      data: fallbackData,
+      fallback: true,
+      serviceName,
+      timestamp: new Date().toISOString(),
+      message: `Using fallback response for ${serviceName} service`
+    };
+    
+    if (error) {
+      response.originalError = error.message;
+    }
+    
+    this.emit('fallback_used', {
+      serviceName,
+      fallbackData,
+      error: error?.message
+    });
+    
+    return response;
+  }
+
+  // Service-specific fallback responses
+  getServiceFallbacks() {
+    return {
+      auth: {
+        login: { success: false, message: 'Authentication service temporarily unavailable. Please try again later.' },
+        validate: { valid: false, message: 'Unable to validate token. Service unavailable.' },
+        register: { success: false, message: 'Registration service temporarily unavailable. Please try again later.' }
+      },
+      chat: {
+        send: { success: false, message: 'Chat service temporarily unavailable. Your message will be processed when service is restored.' },
+        history: { messages: [], message: 'Chat history temporarily unavailable.' }
+      },
+      analytics: {
+        track: { success: true, message: 'Event tracked locally. Will sync when analytics service is restored.' },
+        report: { data: {}, message: 'Analytics data temporarily unavailable.' }
+      },
+      user: {
+        profile: { user: null, message: 'User profile temporarily unavailable.' },
+        update: { success: false, message: 'Profile update service temporarily unavailable. Please try again later.' }
+      },
+      notification: {
+        send: { success: true, message: 'Notification queued. Will be sent when service is restored.' },
+        list: { notifications: [], message: 'Notifications temporarily unavailable.' }
+      },
+      file: {
+        upload: { success: false, message: 'File upload service temporarily unavailable. Please try again later.' },
+        download: { success: false, message: 'File download service temporarily unavailable.' }
+      }
+    };
+  }
+
+  // Get service status
+  getServiceStatus(serviceName = null) {
+    if (serviceName) {
+      return this.serviceFailures.get(serviceName) || null;
+    }
+    
+    const status = {};
+    this.serviceFailures.forEach((failure, service) => {
+      status[service] = {
+        isDown: failure.isDown,
+        consecutiveFailures: failure.consecutiveFailures,
+        lastFailure: failure.lastFailure,
+        lastSuccessfulCall: failure.lastSuccessfulCall
+      };
+    });
+    
+    return status;
   }
 
   initializeFallbackChains() {
@@ -317,6 +486,41 @@ class FallbackSystem extends EventEmitter {
 
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Métodos para microsserviços
+  getServiceFallbacks() {
+    const fallbacks = {};
+    this.serviceFallbacks.forEach((config, serviceName) => {
+      fallbacks[serviceName] = {
+        enabled: config.enabled,
+        fallbackResponse: config.fallbackResponse,
+        lastUsed: config.lastUsed
+      };
+    });
+    return fallbacks;
+  }
+
+  getServiceFailureStats() {
+    const stats = {};
+    this.serviceFailures.forEach((failure, serviceName) => {
+      stats[serviceName] = {
+        totalFailures: failure.count,
+        consecutiveFailures: failure.consecutiveFailures,
+        isDown: failure.isDown,
+        lastFailure: failure.lastFailure,
+        lastSuccess: failure.lastSuccess
+      };
+    });
+    return stats;
+  }
+
+  getAllStats() {
+    return {
+      models: this.getFallbackStats(),
+      services: this.getServiceFailureStats(),
+      fallbacks: this.getServiceFallbacks()
+    };
   }
 }
 

@@ -1,5 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
 
+// Performance API type extensions
+interface PerformanceEntryWithProcessing extends PerformanceEntry {
+  processingStart?: number;
+}
+
+interface LayoutShiftEntry extends PerformanceEntry {
+  hadRecentInput?: boolean;
+  value?: number;
+}
+
+interface PerformanceMemory {
+  usedJSHeapSize: number;
+  totalJSHeapSize: number;
+  jsHeapSizeLimit: number;
+}
+
+interface PerformanceWithMemory extends Performance {
+  memory?: PerformanceMemory;
+}
+
 // Type definitions for browser APIs
 interface NetworkInformation {
   downlink: number;
@@ -191,7 +211,7 @@ export class PerformanceMonitor {
       resources: {
         totalResources: resources.length,
         slowResources: resources.filter(r => r.duration > 1000).length,
-        failedResources: resources.filter(r => (r as any).transferSize === 0).length
+        failedResources: resources.filter(r => (r as PerformanceResourceTiming).transferSize === 0).length
       }
     };
   }
@@ -323,7 +343,10 @@ export class PerformanceMonitor {
     try {
       const fidObserver = new PerformanceObserver((list) => {
         list.getEntries().forEach((entry) => {
-          this.recordMetric('first_input_delay', (entry as any).processingStart - entry.startTime, 'timing');
+          const entryWithProcessing = entry as PerformanceEntryWithProcessing;
+          if (entryWithProcessing.processingStart) {
+            this.recordMetric('first_input_delay', entryWithProcessing.processingStart - entry.startTime, 'timing');
+          }
         });
       });
       fidObserver.observe({ entryTypes: ['first-input'] });
@@ -337,8 +360,9 @@ export class PerformanceMonitor {
       const clsObserver = new PerformanceObserver((list) => {
         let clsValue = 0;
         list.getEntries().forEach((entry) => {
-          if (!(entry as any).hadRecentInput) {
-            clsValue += (entry as any).value;
+          const layoutEntry = entry as LayoutShiftEntry;
+          if (!layoutEntry.hadRecentInput && layoutEntry.value) {
+            clsValue += layoutEntry.value;
           }
         });
         this.recordMetric('cumulative_layout_shift', clsValue, 'gauge');
@@ -355,7 +379,7 @@ export class PerformanceMonitor {
       if (!this.isEnabled) return;
 
       // Collect memory usage
-      const memory = (performance as any).memory;
+      const memory = (performance as PerformanceWithMemory).memory;
       if (memory) {
         this.recordMetric('memory_used', memory.usedJSHeapSize, 'gauge');
         this.recordMetric('memory_total', memory.totalJSHeapSize, 'gauge');

@@ -1,8 +1,7 @@
 // AI Conversation History Component - Advanced Chat Management
 // Smart history, export/import, advanced search, conversation analytics
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { MessageCircle, Search, Filter, Download, Upload, Trash2, Star, Clock, User, Bot, Tag, Calendar, BarChart3, TrendingUp, Eye, Edit3, Copy, Share2, Archive, RefreshCw, Settings, ChevronDown, ChevronRight, FileText, Image, Code, Mic, Video, Link, Hash, Zap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 
 interface ConversationMessage {
   id: string;
@@ -17,7 +16,7 @@ interface ConversationMessage {
     name: string;
     size?: number;
     url?: string;
-    metadata?: any;
+    metadata?: Record<string, unknown>;
   }[];
   metadata?: {
     temperature?: number;
@@ -58,55 +57,12 @@ interface Conversation {
   };
 }
 
-interface ConversationFilter {
-  search: string;
-  category: string;
-  tags: string[];
-  dateRange: {
-    start: Date | null;
-    end: Date | null;
-  };
-  model: string;
-  isStarred?: boolean;
-  isArchived?: boolean;
-  minQuality?: number;
-  sortBy: 'updatedAt' | 'createdAt' | 'title' | 'quality' | 'tokens' | 'cost';
-  sortOrder: 'asc' | 'desc';
-}
-
-interface ConversationStats {
-  totalConversations: number;
-  totalMessages: number;
-  totalTokens: number;
-  totalCost: number;
-  avgQuality: number;
-  avgResponseTime: number;
-  topCategories: { name: string; count: number }[];
-  topTags: { name: string; count: number }[];
-  topModels: { name: string; count: number; tokens: number }[];
-  dailyStats: { date: string; conversations: number; messages: number; tokens: number }[];
-  sentimentDistribution: { positive: number; neutral: number; negative: number };
-}
+// Removed unused interfaces ConversationFilter and ConversationStats
 
 const AIConversationHistory: React.FC = () => {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-  const [filter, setFilter] = useState<ConversationFilter>({
-    search: '',
-    category: '',
-    tags: [],
-    dateRange: { start: null, end: null },
-    model: '',
-    sortBy: 'updatedAt',
-    sortOrder: 'desc'
-  });
-  const [showFilters, setShowFilters] = useState(false);
-  const [activeTab, setActiveTab] = useState<'conversations' | 'analytics' | 'insights' | 'settings'>('conversations');
-  const [viewMode, setViewMode] = useState<'list' | 'grid' | 'timeline'>('list');
-  const [selectedConversations, setSelectedConversations] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
+  const [, setConversations] = useState<Conversation[]>([]); // conversations will be used for displaying conversation history
+  // conversations is used for future implementation
+  // const [selectedConversations, setSelectedConversations] = useState<string[]>([]);
   
   // Mock data
   const [mockConversations] = useState<Conversation[]>([
@@ -268,7 +224,8 @@ const AIConversationHistory: React.FC = () => {
     setConversations(mockConversations);
   }, [mockConversations]);
   
-  // Calculate stats
+  // Calculate stats (commented out as not used in render)
+  /*
   const stats = useMemo((): ConversationStats => {
     const totalConversations = conversations.length;
     const totalMessages = conversations.reduce((sum, conv) => sum + conv.messages.length, 0);
@@ -346,124 +303,17 @@ const AIConversationHistory: React.FC = () => {
       sentimentDistribution: sentimentCount
     };
   }, [conversations]);
+  */
   
-  // Filter conversations
-  const filteredConversations = useMemo(() => {
-    let filtered = conversations.filter(conv => {
-      // Search filter
-      if (filter.search) {
-        const searchLower = filter.search.toLowerCase();
-        const matchesTitle = conv.title.toLowerCase().includes(searchLower);
-        const matchesContent = conv.messages.some(msg => 
-          msg.content.toLowerCase().includes(searchLower)
-        );
-        const matchesTags = conv.tags.some(tag => 
-          tag.toLowerCase().includes(searchLower)
-        );
-        if (!matchesTitle && !matchesContent && !matchesTags) return false;
-      }
-      
-      // Category filter
-      if (filter.category && conv.category !== filter.category) return false;
-      
-      // Tags filter
-      if (filter.tags.length > 0) {
-        const hasAllTags = filter.tags.every(tag => conv.tags.includes(tag));
-        if (!hasAllTags) return false;
-      }
-      
-      // Date range filter
-      if (filter.dateRange.start && conv.createdAt < filter.dateRange.start.getTime()) return false;
-      if (filter.dateRange.end && conv.createdAt > filter.dateRange.end.getTime()) return false;
-      
-      // Model filter
-      if (filter.model && conv.model !== filter.model) return false;
-      
-      // Starred filter
-      if (filter.isStarred !== undefined && conv.isStarred !== filter.isStarred) return false;
-      
-      // Archived filter
-      if (filter.isArchived !== undefined && conv.isArchived !== filter.isArchived) return false;
-      
-      // Quality filter
-      if (filter.minQuality && conv.quality < filter.minQuality) return false;
-      
-      return true;
-    });
-    
-    // Sort conversations
-    filtered.sort((a, b) => {
-      const aValue = a[filter.sortBy];
-      const bValue = b[filter.sortBy];
-      
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return filter.sortOrder === 'asc' 
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
-      
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return filter.sortOrder === 'asc' 
-          ? aValue - bValue
-          : bValue - aValue;
-      }
-      
-      return 0;
-    });
-    
-    return filtered;
-  }, [conversations, filter]);
+  // Filter conversations (simplified as filter is not used)
+  // const filteredConversations = useMemo(() => {
+  //   return conversations;
+  // }, [conversations]);
   
-  // Toggle conversation selection
-  const toggleConversationSelection = (conversationId: string) => {
-    setSelectedConversations(prev => 
-      prev.includes(conversationId)
-        ? prev.filter(id => id !== conversationId)
-        : [...prev, conversationId]
-    );
-  };
+  // These functions are defined but not used in the current implementation
+  // They can be used when the UI components are fully implemented
   
-  // Select all conversations
-  const selectAllConversations = () => {
-    setSelectedConversations(
-      selectedConversations.length === filteredConversations.length
-        ? []
-        : filteredConversations.map(conv => conv.id)
-    );
-  };
-  
-  // Delete selected conversations
-  const deleteSelectedConversations = () => {
-    setConversations(prev => 
-      prev.filter(conv => !selectedConversations.includes(conv.id))
-    );
-    setSelectedConversations([]);
-    setSelectedConversation(null);
-  };
-  
-  // Archive selected conversations
-  const archiveSelectedConversations = () => {
-    setConversations(prev => 
-      prev.map(conv => 
-        selectedConversations.includes(conv.id)
-          ? { ...conv, isArchived: !conv.isArchived }
-          : conv
-      )
-    );
-    setSelectedConversations([]);
-  };
-  
-  // Star/unstar conversation
-  const toggleStar = (conversationId: string) => {
-    setConversations(prev => 
-      prev.map(conv => 
-        conv.id === conversationId
-          ? { ...conv, isStarred: !conv.isStarred }
-          : conv
-      )
-    );
-  };
-  
+  /*
   // Export conversations
   const exportConversations = (format: 'json' | 'csv' | 'markdown') => {
     const dataToExport = selectedConversations.length > 0
@@ -480,7 +330,7 @@ const AIConversationHistory: React.FC = () => {
         filename = 'conversations.json';
         mimeType = 'application/json';
         break;
-      case 'csv':
+      case 'csv': {
         const headers = ['Title', 'Category', 'Tags', 'Created', 'Messages', 'Tokens', 'Cost', 'Quality'];
         const rows = dataToExport.map(conv => [
           conv.title,
@@ -496,7 +346,8 @@ const AIConversationHistory: React.FC = () => {
         filename = 'conversations.csv';
         mimeType = 'text/csv';
         break;
-      case 'markdown':
+      }
+      case 'markdown': {
         content = dataToExport.map(conv => {
           const messages = conv.messages.map(msg => 
             `**${msg.role}**: ${msg.content}`
@@ -506,6 +357,7 @@ const AIConversationHistory: React.FC = () => {
         filename = 'conversations.md';
         mimeType = 'text/markdown';
         break;
+      }
     }
     
     const blob = new Blob([content], { type: mimeType });
@@ -515,8 +367,6 @@ const AIConversationHistory: React.FC = () => {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-    
-    setShowExportModal(false);
   };
   
   // Import conversations
@@ -541,7 +391,7 @@ const AIConversationHistory: React.FC = () => {
           return [...prev, ...newConversations];
         });
         
-        setShowImportModal(false);
+        // Import completed successfully
       } catch (error) {
         console.error('Failed to import conversations:', error);
         alert('Failed to import conversations. Please check the file format.');
@@ -583,6 +433,7 @@ const AIConversationHistory: React.FC = () => {
     }
     return message.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />;
   };
+  */
 
   return (
     <div className="h-full flex flex-col">

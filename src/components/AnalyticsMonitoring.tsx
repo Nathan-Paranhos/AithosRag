@@ -34,7 +34,8 @@ import {
   Share2,
   Bookmark,
   Search,
-  FileText
+  FileText,
+  CheckCircle
 } from 'lucide-react';
 
 interface AnalyticsMonitoringProps {
@@ -117,6 +118,7 @@ interface ErrorEvent {
   resolved: boolean;
 }
 
+/*
 interface UserJourney {
   id: string;
   userId: string;
@@ -130,6 +132,7 @@ interface UserJourney {
   outcome: 'conversion' | 'bounce' | 'ongoing';
   value: number;
 }
+*/
 
 const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '' }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'performance' | 'behavior' | 'heatmaps' | 'abtests' | 'errors' | 'realtime'>('overview');
@@ -312,7 +315,7 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{value}</p>
+          <p className="text-2xl font-bold text-white dark:text-gray-100 mt-1">{value}</p>
           {subtitle && <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{subtitle}</p>}
           {change !== undefined && (
             <div className={`flex items-center mt-2 text-sm ${
@@ -365,7 +368,7 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
 
       {/* Performance Score */}
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
+        <h3 className="text-lg font-semibold text-white dark:text-gray-100 mb-4 flex items-center">
           <Zap className="w-5 h-5 mr-2" />
           Performance Score
         </h3>
@@ -402,19 +405,19 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">{performanceMetrics.loadTime}s</div>
+            <div className="text-lg font-semibold text-white dark:text-gray-100">{performanceMetrics.loadTime}s</div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Load Time</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">{performanceMetrics.firstContentfulPaint}s</div>
+            <div className="text-lg font-semibold text-white dark:text-gray-100">{performanceMetrics.firstContentfulPaint}s</div>
             <div className="text-sm text-gray-600 dark:text-gray-400">FCP</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">{performanceMetrics.largestContentfulPaint}s</div>
+            <div className="text-lg font-semibold text-white dark:text-gray-100">{performanceMetrics.largestContentfulPaint}s</div>
             <div className="text-sm text-gray-600 dark:text-gray-400">LCP</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">{performanceMetrics.cumulativeLayoutShift}</div>
+            <div className="text-lg font-semibold text-white dark:text-gray-100">{performanceMetrics.cumulativeLayoutShift}</div>
             <div className="text-sm text-gray-600 dark:text-gray-400">CLS</div>
           </div>
         </div>
@@ -437,9 +440,9 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
               <div key={item.source} className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className={`w-3 h-3 rounded-full ${item.color}`}></div>
-                  <span className="text-gray-900 dark:text-gray-100">{item.source}</span>
+                  <span className="text-white dark:text-gray-100">{item.source}</span>
                 </div>
-                <span className="font-semibold text-gray-900 dark:text-gray-100">{item.percentage}%</span>
+                <span className="font-semibold text-white dark:text-gray-100">{item.percentage}%</span>
               </div>
             ))}
           </div>
@@ -459,9 +462,9 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
               <div key={item.device} className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="text-gray-600 dark:text-gray-400">{item.icon}</div>
-                  <span className="text-gray-900 dark:text-gray-100">{item.device}</span>
+                  <span className="text-white dark:text-gray-100">{item.device}</span>
                 </div>
-                <span className="font-semibold text-gray-900 dark:text-gray-100">{item.percentage}%</span>
+                <span className="font-semibold text-white dark:text-gray-100">{item.percentage}%</span>
               </div>
             ))}
           </div>
@@ -555,7 +558,7 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
                   style={{ width: `${Math.min(100, (item.time / 800) * 100)}%` }}
                 ></div>
               </div>
-              <div className="w-16 text-sm font-medium text-gray-900 dark:text-gray-100">{item.time}ms</div>
+              <div className="w-16 text-sm font-medium text-white dark:text-gray-100">{item.time}ms</div>
             </div>
           ))}
         </div>
@@ -616,9 +619,9 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
             <div key={item.action} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div className="flex items-center space-x-3">
                 <div className="text-gray-600 dark:text-gray-400">{item.icon}</div>
-                <span className="text-gray-900 dark:text-gray-100">{item.action}</span>
+                <span className="text-white dark:text-gray-100">{item.action}</span>
               </div>
-              <span className="font-semibold text-gray-900 dark:text-gray-100">{formatNumber(item.count)}</span>
+              <span className="font-semibold text-white dark:text-gray-100">{formatNumber(item.count)}</span>
             </div>
           ))}
         </div>
@@ -640,9 +643,9 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
           ].map((item, index) => (
             <div key={item.step} className="relative">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-900 dark:text-gray-100 font-medium">{item.step}</span>
+                <span className="text-white dark:text-gray-100 font-medium">{item.step}</span>
                 <div className="flex items-center space-x-2">
-                  <span className="text-gray-900 dark:text-gray-100 font-semibold">{formatNumber(item.users)}</span>
+                  <span className="text-white dark:text-gray-100 font-semibold">{formatNumber(item.users)}</span>
                   <span className="text-gray-600 dark:text-gray-400">({item.percentage}%)</span>
                   {index > 0 && (
                     <span className="text-red-600 dark:text-red-400 text-sm">
@@ -672,7 +675,7 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
           Click Heatmap
         </h3>
         <div className="relative bg-gray-100 dark:bg-gray-700 rounded-lg h-96 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900">
+          <div className="absolute inset-0 bg-primary-50 dark:bg-brand-dark-blue">
             {/* Simulated webpage layout */}
             <div className="p-4">
               <div className="bg-white dark:bg-gray-800 rounded shadow-sm p-4 mb-4">
@@ -728,7 +731,7 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
       {/* Heatmap Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Most Clicked Elements</h4>
+          <h4 className="font-semibold text-white dark:text-gray-100 mb-3">Most Clicked Elements</h4>
           <div className="space-y-2">
             {[
               { element: 'Main CTA Button', clicks: 1247 },
@@ -738,14 +741,14 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
             ].map(item => (
               <div key={item.element} className="flex justify-between text-sm">
                 <span className="text-gray-600 dark:text-gray-400">{item.element}</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">{item.clicks}</span>
+                <span className="font-medium text-white dark:text-gray-100">{item.clicks}</span>
               </div>
             ))}
           </div>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Scroll Depth</h4>
+          <h4 className="font-semibold text-white dark:text-gray-100 mb-3">Scroll Depth</h4>
           <div className="space-y-3">
             {[
               { depth: '25%', users: 95.2 },
@@ -762,7 +765,7 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
                       style={{ width: `${item.users}%` }}
                     ></div>
                   </div>
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{item.users}%</span>
+                  <span className="text-sm font-medium text-white dark:text-gray-100">{item.users}%</span>
                 </div>
               </div>
             ))}
@@ -770,7 +773,7 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Attention Time</h4>
+          <h4 className="font-semibold text-white dark:text-gray-100 mb-3">Attention Time</h4>
           <div className="space-y-2">
             {[
               { section: 'Header', time: '12.3s' },
@@ -1056,7 +1059,7 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
   );
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 ${className}`}>
+    <div className={`min-h-screen bg-white dark:bg-brand-dark-blue ${className}`}>
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -1072,7 +1075,7 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
           <div className="flex items-center space-x-4">
             <select 
               value={timeRange} 
-              onChange={(e) => setTimeRange(e.target.value as any)}
+              onChange={(e) => setTimeRange(e.target.value as '1h' | '24h' | '7d' | '30d' | '90d')}
               className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="1h">Last Hour</option>
@@ -1109,7 +1112,7 @@ const AnalyticsMonitoring: React.FC<AnalyticsMonitoringProps> = ({ className = '
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as 'overview' | 'performance' | 'behavior' | 'heatmaps' | 'abtests' | 'errors' | 'realtime')}
               className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all ${
                 activeTab === tab.id
                   ? 'bg-blue-600 text-white shadow-md'

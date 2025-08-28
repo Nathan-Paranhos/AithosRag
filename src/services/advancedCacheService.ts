@@ -1,7 +1,7 @@
 // Advanced Cache Service - Enterprise Caching System
 // Redis-like implementation with TTL, LRU, clustering, persistence
 
-interface CacheEntry<T = any> {
+interface CacheEntry<T = unknown> {
   key: string;
   value: T;
   ttl?: number;
@@ -47,7 +47,7 @@ interface CachePattern {
 interface CacheOperation {
   type: 'get' | 'set' | 'delete' | 'clear' | 'expire';
   key: string;
-  value?: any;
+  value?: unknown;
   ttl?: number;
   timestamp: number;
   duration: number;
@@ -69,7 +69,7 @@ type CacheEventType = 'hit' | 'miss' | 'set' | 'delete' | 'expire' | 'evict' | '
 interface CacheEvent {
   type: CacheEventType;
   key: string;
-  value?: any;
+  value?: unknown;
   timestamp: number;
   nodeId?: string;
 }
@@ -81,7 +81,7 @@ class AdvancedCacheService {
   private config: CacheConfig;
   private cleanupTimer?: NodeJS.Timeout;
   private operations: CacheOperation[] = [];
-  private eventListeners = new Map<CacheEventType, Function[]>();
+  private eventListeners = new Map<CacheEventType, ((event: CacheEvent) => void)[]>();
   private patterns = new Map<string, CachePattern>();
   private clusters: CacheCluster[] = [];
   private currentNodeId: string;
@@ -123,7 +123,7 @@ class AdvancedCacheService {
   }
   
   // Core Cache Operations
-  async get<T = any>(key: string): Promise<T | null> {
+  async get<T = unknown>(key: string): Promise<T | null> {
     const startTime = performance.now();
     
     try {
@@ -175,7 +175,7 @@ class AdvancedCacheService {
     }
   }
   
-  async set<T = any>(key: string, value: T, ttl?: number): Promise<boolean> {
+  async set<T = unknown>(key: string, value: T, ttl?: number): Promise<boolean> {
     const startTime = performance.now();
     
     try {
@@ -190,13 +190,13 @@ class AdvancedCacheService {
       
       // Serialize complex objects
       if (typeof value === 'object' && value !== null) {
-        processedValue = JSON.stringify(value) as any;
+        processedValue = JSON.stringify(value) as unknown;
         serialized = true;
       }
       
       // Compress large values
       if (typeof processedValue === 'string' && processedValue.length > this.config.compressionThreshold) {
-        processedValue = this.compress(processedValue) as any;
+        processedValue = this.compress(processedValue) as unknown;
         compressed = true;
       }
       
@@ -287,8 +287,8 @@ class AdvancedCacheService {
   }
   
   // Advanced Operations
-  async mget(keys: string[]): Promise<Map<string, any>> {
-    const results = new Map<string, any>();
+  async mget(keys: string[]): Promise<Map<string, unknown>> {
+    const results = new Map<string, unknown>();
     
     for (const key of keys) {
       const value = await this.get(key);
@@ -300,7 +300,7 @@ class AdvancedCacheService {
     return results;
   }
   
-  async mset(entries: Map<string, any>, ttl?: number): Promise<boolean> {
+  async mset(entries: Map<string, unknown>, ttl?: number): Promise<boolean> {
     try {
       for (const [key, value] of entries) {
         await this.set(key, value, ttl);
@@ -344,8 +344,8 @@ class AdvancedCacheService {
   }
   
   // Tag-based Operations
-  async getByTag(tag: string): Promise<Map<string, any>> {
-    const results = new Map<string, any>();
+  async getByTag(tag: string): Promise<Map<string, unknown>> {
+    const results = new Map<string, unknown>();
     
     for (const [key, entry] of this.cache) {
       if (entry.tags.includes(tag)) {
@@ -467,7 +467,7 @@ class AdvancedCacheService {
     }
   }
   
-  private async saveToIndexedDB(data: any): Promise<void> {
+  private async saveToIndexedDB(data: unknown): Promise<void> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open('AdvancedCache', 1);
       
@@ -489,7 +489,7 @@ class AdvancedCacheService {
     });
   }
   
-  private async loadFromIndexedDB(): Promise<any> {
+  private async loadFromIndexedDB(): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open('AdvancedCache', 1);
       
@@ -524,7 +524,7 @@ class AdvancedCacheService {
     });
   }
   
-  private async syncToCluster(operation: string, key?: string, value?: any, ttl?: number): Promise<void> {
+  private async syncToCluster(operation: string): Promise<void> {
     // Simulate cluster sync - in real implementation, use WebSockets or HTTP
     for (const cluster of this.clusters) {
       if (cluster.status === 'active') {
@@ -541,14 +541,14 @@ class AdvancedCacheService {
   }
   
   // Event System
-  on(event: CacheEventType, callback: Function): void {
+  on(event: CacheEventType, callback: (event: CacheEvent) => void): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
     }
     this.eventListeners.get(event)!.push(callback);
   }
   
-  off(event: CacheEventType, callback: Function): void {
+  off(event: CacheEventType, callback: (event: CacheEvent) => void): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       const index = listeners.indexOf(callback);
@@ -558,7 +558,7 @@ class AdvancedCacheService {
     }
   }
   
-  private emitEvent(type: CacheEventType, key: string, value?: any): void {
+  private emitEvent(type: CacheEventType, key: string, value?: unknown): void {
     const listeners = this.eventListeners.get(type);
     if (listeners) {
       const event: CacheEvent = {
@@ -600,7 +600,7 @@ class AdvancedCacheService {
     return [...this.clusters];
   }
   
-  private recordOperation(type: CacheOperation['type'], key: string, value?: any, ttl?: number, duration: number = 0, hit: boolean = false): void {
+  private recordOperation(type: CacheOperation['type'], key: string, value?: unknown, ttl?: number, duration: number = 0, hit: boolean = false): void {
     if (!this.config.enableStats) return;
     
     const operation: CacheOperation = {
@@ -662,7 +662,7 @@ class AdvancedCacheService {
   }
   
   // Utility Methods
-  async warmup(keys: string[], loader: (key: string) => Promise<any>): Promise<void> {
+  async warmup(keys: string[], loader: (key: string) => Promise<unknown>): Promise<void> {
     const promises = keys.map(async (key) => {
       try {
         const value = await loader(key);
@@ -729,7 +729,7 @@ export const createCachePattern = (prefix: string, suffix: string = '*'): CacheP
   };
 };
 
-export const withCache = <T extends (...args: any[]) => Promise<any>>(
+export const withCache = <T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
   keyGenerator: (...args: Parameters<T>) => string,
   ttl?: number

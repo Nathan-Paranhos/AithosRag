@@ -11,7 +11,7 @@ import {
   MessageSquare,
   Settings
 } from 'lucide-react';
-import { usePWA } from '../hooks/usePWA';
+import usePWA from '../hooks/usePWA';
 import { toast } from 'sonner';
 
 interface NotificationData {
@@ -25,7 +25,7 @@ interface NotificationData {
     label: string;
     action: string;
   }[];
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 interface PushNotificationsProps {

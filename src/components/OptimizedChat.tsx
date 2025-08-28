@@ -5,12 +5,14 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Mic, MicOff, Loader2, Zap, Brain, TrendingUp, Sparkles, Wifi, WifiOff } from 'lucide-react';
+import { debounce } from 'lodash-es';
 import { useOptimizedChat, type ChatOptions } from '../hooks/useOptimizedChat';
 import { useOfflineStorage, type ConversationData, type MessageData } from '../hooks/useOfflineStorage';
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import { OfflineSync } from './OfflineSync';
-import { useViewport } from '../utils/viewport';
-import { debounce } from 'lodash-es';
+import { useViewport } from "../utils/viewport";
+import usePWA from '../hooks/usePWA';
+import ModelSelector from './ModelSelector';
 
 export interface OptimizedChatProps {
   className?: string;
@@ -30,12 +32,10 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
   placeholder = 'Digite sua mensagem...',
   options = {},
   onMessageSent,
-  onResponse,
   showMetrics = true,
   enableVoice = true,
   enableOffline = true,
-  conversationId,
-  theme = 'auto'
+  conversationId
 }) => {
   const { isMobile, isSlowConnection } = useViewport();
   const {
@@ -66,7 +66,7 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
 
   // Offline functionality
   const offlineStorage = useOfflineStorage();
-  const { isOnline, syncStatus, lastSync, sync } = useOfflineSync();
+  const { isOnline } = usePWA();
   const [offlineMessages, setOfflineMessages] = useState<MessageData[]>([]);
   
   // Estados locais
@@ -74,6 +74,7 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showAutoComplete, setShowAutoComplete] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('llama-3.1-70b-versatile'); // Modelo padrão Groq
   
   // Refs
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -244,10 +245,18 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
   const toggleVoice = useCallback(() => {
     if (!recognitionRef.current) return;
     
-    if (isVoiceActive) {
-      recognitionRef.current.stop();
-    } else {
-      recognitionRef.current.start();
+    try {
+      if (isVoiceActive) {
+        recognitionRef.current.stop();
+      } else {
+        // Verificar se já está ativo antes de iniciar
+        if (recognitionRef.current.state !== 'started') {
+          recognitionRef.current.start();
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erro ao controlar reconhecimento de voz:', error);
+      setIsVoiceActive(false);
     }
   }, [isVoiceActive]);
   
@@ -280,26 +289,35 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
   }, []);
   
   return (
-    <div className={`flex flex-col h-full bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden ${className}`}>
+    <div className={`flex flex-col h-full relative bg-gradient-to-br from-slate-900/95 via-gray-800/95 to-slate-900/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden ${className}`}>
+      {/* Model Selector */}
+      <div className="p-4 border-b border-white/20 bg-gradient-to-r from-blue-600/10 via-gray-700/10 to-blue-500/10">
+        <ModelSelector 
+          selectedModel={selectedModel} 
+          onModelChange={setSelectedModel}
+        />
+      </div>
+
       {/* Header com métricas */}
       {showMetrics && (
-        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-600/20 via-gray-700/20 to-blue-500/20 backdrop-blur-sm border-b border-white/20">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <Brain className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">IA Otimizada</span>
+              <Brain className="w-5 h-5 text-blue-400" />
+              <span className="text-sm font-medium text-white">IA Otimizada</span>
+              <span className="text-xs text-blue-300 bg-blue-500/20 px-2 py-1 rounded-full">{selectedModel}</span>
             </div>
             
             {/* Status de conexão */}
             {enableOffline && (
               <div className="flex items-center space-x-2">
                 {isOnline ? (
-                  <div className="flex items-center space-x-1 text-xs text-green-600 dark:text-green-400">
+                  <div className="flex items-center space-x-1 text-xs text-green-400">
                     <Wifi className="w-4 h-4" />
                     <span>Online</span>
                   </div>
                 ) : (
-                  <div className="flex items-center space-x-1 text-xs text-orange-600 dark:text-orange-400">
+                  <div className="flex items-center space-x-1 text-xs text-orange-400">
                     <WifiOff className="w-4 h-4" />
                     <span>Offline</span>
                   </div>
@@ -308,7 +326,7 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
             )}
             
             {config.enableStreaming && (
-              <div className="flex items-center space-x-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full">
+              <div className="flex items-center space-x-1 text-xs bg-blue-500/20 backdrop-blur-sm text-blue-300 px-3 py-1 rounded-full border border-blue-400/30">
                 <Zap className="w-3 h-3" />
                 <span>Streaming</span>
               </div>
@@ -319,7 +337,7 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
             {/* Componente de sincronização offline */}
             {enableOffline && <OfflineSync />}
             
-            <div className="flex items-center space-x-4 text-xs text-gray-600 dark:text-gray-400">
+            <div className="flex items-center space-x-4 text-xs text-gray-300">
               {/* Performance */}
               <div className="flex items-center space-x-1">
                 <TrendingUp className={`w-3 h-3 ${getPerformanceColor(performance.responseTime)}`} />
@@ -347,12 +365,17 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
         {(messages.length === 0 && offlineMessages.length === 0) && (
-          <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-            <Brain className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium mb-2">Chat IA Otimizado</p>
+          <div className="text-center text-gray-300 py-8">
+            <div className="bg-gradient-to-r from-blue-500 to-gray-700 p-4 rounded-2xl w-fit mx-auto mb-4">
+              <Brain className="w-12 h-12 text-white" />
+            </div>
+            <p className="text-lg font-medium mb-2 text-white">Chat IA Otimizado</p>
             <p className="text-sm">Comece uma conversa inteligente com IA avançada</p>
+            <p className="text-sm mt-2 text-blue-300">
+              Modelo selecionado: <span className="font-medium text-blue-400">{selectedModel}</span>
+            </p>
             {enableOffline && !isOnline && (
-              <p className="text-sm mt-2 text-orange-600 dark:text-orange-400">
+              <p className="text-sm mt-2 text-orange-400">
                 Modo offline ativo - suas mensagens serão sincronizadas quando voltar online
               </p>
             )}
@@ -368,10 +391,10 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
               className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-messageSlideIn`}
             >
               <div
-                className={`max-w-[80%] p-3 rounded-lg shadow-sm relative ${
+                className={`max-w-[80%] p-4 rounded-2xl shadow-lg relative backdrop-blur-sm border ${
                   message.role === 'user'
-                    ? 'bg-blue-500 text-white ml-4'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 mr-4'
+                    ? 'bg-gradient-to-r from-blue-600 to-gray-700 text-white ml-4 border-blue-400/30'
+                    : 'bg-white/10 text-white mr-4 border-white/20'
                 } ${
                   message.metadata?.isOffline ? 'border-l-4 border-orange-400' : ''
                 }`}
@@ -395,17 +418,17 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
         {/* Loading indicator */}
         {(isLoading || isStreaming) && (
           <div className="flex justify-start animate-fadeIn">
-            <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg mr-4">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-4 rounded-2xl mr-4">
               <div className="flex items-center space-x-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {isStreaming ? 'Gerando resposta...' : 'Processando...'}
+                <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                <span className="text-sm text-gray-300">
+                  {isStreaming ? `Gerando resposta com ${selectedModel}...` : 'Processando...'}
                 </span>
               </div>
               <div className="flex space-x-1 mt-2">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-dotPulse"></div>
+                <div className="w-2 h-2 bg-blue-400 rounded-full animate-dotPulse"></div>
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-dotPulse" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-dotPulse" style={{ animationDelay: '0.4s' }}></div>
+                <div className="w-2 h-2 bg-pink-400 rounded-full animate-dotPulse" style={{ animationDelay: '0.4s' }}></div>
               </div>
             </div>
           </div>
@@ -414,11 +437,11 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
         {/* Error message */}
         {error && (
           <div className="flex justify-center animate-fadeIn">
-            <div className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 p-3 rounded-lg max-w-md">
+            <div className="bg-red-500/20 backdrop-blur-sm border border-red-400/30 text-red-300 p-4 rounded-2xl max-w-md">
               <p className="text-sm">{error}</p>
               <button
                 onClick={retryLastMessage}
-                className="text-xs underline mt-1 hover:no-underline"
+                className="text-xs underline mt-1 hover:no-underline text-red-400 hover:text-red-300"
               >
                 Tentar novamente
               </button>
@@ -430,14 +453,14 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
       </div>
       
       {/* Suggestions */}
-      {showSuggestions && suggestions.length > 0 && (
+      {showSuggestions && suggestions && suggestions.length > 0 && (
         <div className="px-4 pb-2">
           <div className="flex flex-wrap gap-2">
             {suggestions.slice(0, 3).map((suggestion, index) => (
               <button
                 key={index}
                 onClick={() => handleSuggestionClick(suggestion)}
-                className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors animate-fadeIn"
+                className="text-xs bg-blue-500/20 backdrop-blur-sm text-blue-300 px-3 py-1 rounded-full hover:bg-blue-500/30 transition-colors animate-fadeIn border border-blue-400/30"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 {suggestion}
@@ -448,14 +471,14 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
       )}
       
       {/* Auto-complete */}
-      {showAutoComplete && autoComplete.length > 0 && (
+      {showAutoComplete && autoComplete && autoComplete.length > 0 && (
         <div className="px-4 pb-2">
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 space-y-1">
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-3 space-y-1">
             {autoComplete.slice(0, 3).map((completion, index) => (
               <button
                 key={index}
                 onClick={() => handleAutoCompleteClick(completion)}
-                className="w-full text-left text-sm p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors animate-fadeIn"
+                className="w-full text-left text-sm p-2 hover:bg-white/10 rounded-lg transition-colors animate-fadeIn text-gray-300 hover:text-white"
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
                 {completion}
@@ -466,7 +489,7 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
       )}
       
       {/* Input Area */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-t border-white/20">
         <div className="flex items-end space-x-2">
           <div className="flex-1 relative">
             <textarea
@@ -476,7 +499,7 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
               onKeyPress={handleKeyPress}
               placeholder={placeholder}
               rows={1}
-              className="w-full p-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
+              className="w-full p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400/50 text-white placeholder-gray-400 transition-all duration-200"
               style={{
                 minHeight: '48px',
                 maxHeight: isMobile ? '120px' : '200px'
@@ -507,7 +530,7 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
           <button
             onClick={handleSendMessage}
             disabled={!inputValue.trim() || isLoading || isStreaming}
-            className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover-lift"
+            className="p-3 bg-gradient-to-r from-blue-600 to-gray-700 hover:from-blue-700 hover:to-gray-800 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed hover-lift"
           >
             {isLoading || isStreaming ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -518,17 +541,17 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
         </div>
         
         {/* Quick actions */}
-        <div className="flex items-center justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
           <div className="flex items-center space-x-4">
             <button
               onClick={clearMessages}
-              className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+              className="hover:text-blue-400 transition-colors"
             >
               Limpar chat
             </button>
             <button
               onClick={optimizePerformance}
-              className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+              className="hover:text-blue-400 transition-colors"
             >
               Otimizar
             </button>

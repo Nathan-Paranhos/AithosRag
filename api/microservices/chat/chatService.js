@@ -17,7 +17,7 @@ class ChatService extends EventEmitter {
       maxConversationHistory: options.maxConversationHistory || 100,
       rateLimitWindow: options.rateLimitWindow || 60 * 1000, // 1 minute
       rateLimitMax: options.rateLimitMax || 30, // 30 requests per minute
-      websocketPort: options.websocketPort || 3003,
+      websocketPort: options.websocketPort || 3010,
       ...options
     };
 

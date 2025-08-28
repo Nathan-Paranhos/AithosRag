@@ -4,37 +4,16 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import {
   Palette,
-  Type,
-  Layout,
-  Layers,
-  Zap,
   Moon,
   Sun,
   Monitor,
   Copy,
   Check,
   Download,
-  Code,
   Eye,
   Settings,
   Sparkles,
-  Grid,
-  Square,
-  Circle,
-  Triangle,
-  Star,
-  Heart,
-  Bookmark,
-  Bell,
-  Mail,
-  User,
-  Search,
-  Filter,
-  ArrowRight,
-  ChevronDown,
   Plus,
-  Minus,
-  X,
   Info,
   AlertTriangle,
   CheckCircle,
@@ -341,7 +320,7 @@ export const Button: React.FC<ButtonProps> = ({
     ghost: 'text-gray-700 hover:bg-gray-100 focus:ring-gray-500 dark:text-gray-300 dark:hover:bg-gray-800',
     glass: isDark 
       ? 'bg-black/25 backdrop-blur-md border border-white/18 text-white hover:bg-black/40 shadow-lg'
-      : 'bg-white/25 backdrop-blur-md border border-white/18 text-gray-900 hover:bg-white/40 shadow-lg'
+      : 'bg-white/25 backdrop-blur-md border border-white/18 text-white hover:bg-white/40 shadow-lg'
   };
   
   const sizeClasses = {
@@ -463,7 +442,7 @@ export const Input: React.FC<InputProps> = ({
           value={value}
           onChange={(e) => onChange?.(e.target.value)}
           disabled={disabled}
-          className={`${baseClasses} ${sizeClasses[size]} ${stateClasses} ${icon ? 'pl-10' : ''} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100`}
+          className={`${baseClasses} ${sizeClasses[size]} ${stateClasses} ${icon ? 'pl-10' : ''} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} bg-white dark:bg-gray-800 text-white dark:text-gray-100`}
         />
       </div>
       {error && (
@@ -498,7 +477,7 @@ export const Badge: React.FC<BadgeProps> = ({
     error: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
     glass: isDark
       ? 'bg-black/25 backdrop-blur-md border border-white/18 text-white'
-      : 'bg-white/25 backdrop-blur-md border border-white/18 text-gray-900'
+      : 'bg-white/25 backdrop-blur-md border border-white/18 text-white'
   };
   
   const sizeClasses = {
@@ -557,7 +536,7 @@ const DesignSystem: React.FC = () => {
 
   const ColorPalette: React.FC<{ name: string; colors: Record<string, string> }> = ({ name, colors }) => (
     <div className="space-y-3">
-      <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 capitalize">{name}</h4>
+      <h4 className="text-lg font-semibold text-white dark:text-gray-100 capitalize">{name}</h4>
       <div className="grid grid-cols-5 md:grid-cols-10 gap-2">
         {Object.entries(colors).map(([shade, color]) => (
           <div key={shade} className="group cursor-pointer" onClick={() => copyToClipboard(color, `${name}-${shade}`)}>
@@ -582,13 +561,13 @@ const DesignSystem: React.FC = () => {
 
   const TypographyScale: React.FC = () => (
     <div className="space-y-4">
-      <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Typography Scale</h4>
+      <h4 className="text-lg font-semibold text-white dark:text-gray-100">Typography Scale</h4>
       {Object.entries(designTokens.typography.fontSize).map(([size, value]) => (
         <div key={size} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <div className="flex items-center space-x-4">
             <span className="font-mono text-sm text-gray-600 dark:text-gray-400 w-12">{size}</span>
             <span 
-              className="font-medium text-gray-900 dark:text-gray-100"
+              className="font-medium text-white dark:text-gray-100"
               style={{ fontSize: value }}
             >
               The quick brown fox jumps
@@ -610,7 +589,7 @@ const DesignSystem: React.FC = () => {
 
   const SpacingScale: React.FC = () => (
     <div className="space-y-4">
-      <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Spacing Scale</h4>
+      <h4 className="text-lg font-semibold text-white dark:text-gray-100">Spacing Scale</h4>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {Object.entries(designTokens.spacing).slice(0, 20).map(([size, value]) => (
           <div key={size} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -640,7 +619,7 @@ const DesignSystem: React.FC = () => {
     <div className="space-y-8">
       {/* Buttons */}
       <div className="space-y-4">
-        <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Buttons</h4>
+        <h4 className="text-lg font-semibold text-white dark:text-gray-100">Buttons</h4>
         <div className="flex flex-wrap gap-4">
           <Button variant="primary">Primary</Button>
           <Button variant="secondary">Secondary</Button>
@@ -663,22 +642,22 @@ const DesignSystem: React.FC = () => {
 
       {/* Cards */}
       <div className="space-y-4">
-        <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Cards</h4>
+        <h4 className="text-lg font-semibold text-white dark:text-gray-100">Cards</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card variant="default">
-            <h5 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Default Card</h5>
+            <h5 className="font-semibold text-white dark:text-gray-100 mb-2">Default Card</h5>
             <p className="text-gray-600 dark:text-gray-400">This is a default card with standard styling.</p>
           </Card>
           <Card variant="glass">
-            <h5 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Glass Card</h5>
+            <h5 className="font-semibold text-white dark:text-gray-100 mb-2">Glass Card</h5>
             <p className="text-gray-600 dark:text-gray-400">This card uses glassmorphism effects.</p>
           </Card>
           <Card variant="elevated">
-            <h5 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Elevated Card</h5>
+            <h5 className="font-semibold text-white dark:text-gray-100 mb-2">Elevated Card</h5>
             <p className="text-gray-600 dark:text-gray-400">This card has enhanced shadows.</p>
           </Card>
           <Card variant="outlined">
-            <h5 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Outlined Card</h5>
+            <h5 className="font-semibold text-white dark:text-gray-100 mb-2">Outlined Card</h5>
             <p className="text-gray-600 dark:text-gray-400">This card uses border styling.</p>
           </Card>
         </div>
@@ -686,7 +665,7 @@ const DesignSystem: React.FC = () => {
 
       {/* Inputs */}
       <div className="space-y-4">
-        <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Inputs</h4>
+        <h4 className="text-lg font-semibold text-white dark:text-gray-100">Inputs</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input label="Default Input" placeholder="Enter text..." />
           <Input label="With Icon" placeholder="Search..." icon={<Search className="w-4 h-4" />} />
@@ -697,7 +676,7 @@ const DesignSystem: React.FC = () => {
 
       {/* Badges */}
       <div className="space-y-4">
-        <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Badges</h4>
+        <h4 className="text-lg font-semibold text-white dark:text-gray-100">Badges</h4>
         <div className="flex flex-wrap gap-4">
           <Badge variant="primary">Primary</Badge>
           <Badge variant="secondary">Secondary</Badge>
@@ -719,7 +698,7 @@ const DesignSystem: React.FC = () => {
     <div className="space-y-8">
       {/* Dashboard Example */}
       <div className="space-y-4">
-        <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Dashboard Layout</h4>
+        <h4 className="text-lg font-semibold text-white dark:text-gray-100">Dashboard Layout</h4>
         <Card variant="glass" className="p-0 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
             <div className="flex items-center justify-between">
@@ -756,12 +735,12 @@ const DesignSystem: React.FC = () => {
 
       {/* Form Example */}
       <div className="space-y-4">
-        <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Form Layout</h4>
+        <h4 className="text-lg font-semibold text-white dark:text-gray-100">Form Layout</h4>
         <Card variant="elevated">
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
               <User className="w-6 h-6 text-blue-600" />
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">User Profile</h3>
+              <h3 className="text-xl font-semibold text-white dark:text-gray-100">User Profile</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input label="First Name" placeholder="John" />
@@ -779,13 +758,13 @@ const DesignSystem: React.FC = () => {
 
       {/* Notification Example */}
       <div className="space-y-4">
-        <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Notification Styles</h4>
+        <h4 className="text-lg font-semibold text-white dark:text-gray-100">Notification Styles</h4>
         <div className="space-y-3">
           <Card variant="default" className="border-l-4 border-l-blue-500">
             <div className="flex items-center space-x-3">
               <Info className="w-5 h-5 text-blue-500" />
               <div>
-                <div className="font-medium text-gray-900 dark:text-gray-100">Information</div>
+                <div className="font-medium text-white dark:text-gray-100">Information</div>
                 <div className="text-gray-600 dark:text-gray-400">This is an informational message.</div>
               </div>
             </div>
@@ -794,7 +773,7 @@ const DesignSystem: React.FC = () => {
             <div className="flex items-center space-x-3">
               <CheckCircle className="w-5 h-5 text-green-500" />
               <div>
-                <div className="font-medium text-gray-900 dark:text-gray-100">Success</div>
+                <div className="font-medium text-white dark:text-gray-100">Success</div>
                 <div className="text-gray-600 dark:text-gray-400">Operation completed successfully.</div>
               </div>
             </div>
@@ -803,7 +782,7 @@ const DesignSystem: React.FC = () => {
             <div className="flex items-center space-x-3">
               <AlertTriangle className="w-5 h-5 text-yellow-500" />
               <div>
-                <div className="font-medium text-gray-900 dark:text-gray-100">Warning</div>
+                <div className="font-medium text-white dark:text-gray-100">Warning</div>
                 <div className="text-gray-600 dark:text-gray-400">Please review this action carefully.</div>
               </div>
             </div>
@@ -812,7 +791,7 @@ const DesignSystem: React.FC = () => {
             <div className="flex items-center space-x-3">
               <XCircle className="w-5 h-5 text-red-500" />
               <div>
-                <div className="font-medium text-gray-900 dark:text-gray-100">Error</div>
+                <div className="font-medium text-white dark:text-gray-100">Error</div>
                 <div className="text-gray-600 dark:text-gray-400">An error occurred while processing.</div>
               </div>
             </div>
@@ -828,7 +807,7 @@ const DesignSystem: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center">
+            <h1 className="text-3xl font-bold text-white dark:text-gray-100 flex items-center">
               <Sparkles className="w-8 h-8 text-blue-600 mr-3" />
               Design System
             </h1>
@@ -877,7 +856,7 @@ const DesignSystem: React.FC = () => {
               <Card variant="default">
                 <div className="space-y-8">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Color Palette</h3>
+                    <h3 className="text-2xl font-bold text-white dark:text-gray-100">Color Palette</h3>
                     <Badge variant="primary">Design Tokens</Badge>
                   </div>
                   {Object.entries(designTokens.colors).map(([name, colors]) => (

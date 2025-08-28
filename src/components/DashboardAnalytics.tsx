@@ -1,26 +1,29 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Users, 
-  MessageSquare, 
-  Clock, 
-  Zap, 
-  Activity, 
-  Globe, 
-  Shield, 
-  Database,
+import React, { useState, useEffect } from 'react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line
+} from 'recharts';
+import {
+  Users,
+  MessageSquare,
+  Clock,
   Download,
-  RefreshCw,
   Filter,
-  Calendar,
+  Zap,
+  Shield,
+  RefreshCw,
+  XCircle,
+  BarChart3,
   Eye,
-  AlertTriangle,
-  CheckCircle,
-  XCircle
+  AlertTriangle
 } from 'lucide-react';
-import { analyticsService, Metric, KPI, AnalyticsFilter } from '../services/analyticsService';
-import { authService } from '../services/authService';
 
 interface AnalyticsData {
   totalUsers: number;
@@ -42,20 +45,21 @@ interface ChartData {
   responseTime: number;
 }
 
-interface DashboardState {
-  metrics: Metric[];
-  kpis: KPI[];
-  loading: boolean;
-  error: string | null;
-  lastUpdated: Date;
-}
-
 interface ActivityItem {
   id: number;
   user: string;
   action: string;
   time: string;
   type: string;
+}
+
+interface KPICard {
+  title: string;
+  value: string;
+  change: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  trend: 'up' | 'down';
 }
 
 const mockActivities: ActivityItem[] = [
@@ -67,23 +71,10 @@ const mockActivities: ActivityItem[] = [
 ];
 
 const DashboardAnalytics: React.FC = () => {
-  const [state, setState] = useState<DashboardState>({
-    metrics: [],
-    kpis: [],
-    loading: true,
-    error: null,
-    lastUpdated: new Date()
-  });
-
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
   const [activities] = useState<ActivityItem[]>(mockActivities);
   const [isRealTime, setIsRealTime] = useState(true);
-  const [filter, setFilter] = useState<AnalyticsFilter>({
-    dateRange: {
-      start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
-      end: new Date()
-    }
-  });
-  const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null);
 
   const [analytics, setAnalytics] = useState<AnalyticsData>({
     totalUsers: 0,
@@ -99,57 +90,6 @@ const DashboardAnalytics: React.FC = () => {
   });
 
   const [chartData, setChartData] = useState<ChartData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedTimeRange, setSelectedTimeRange] = useState('24h');
-
-  // Load analytics data
-  const loadAnalyticsData = async () => {
-    try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
-      
-      const [metrics, kpis] = await Promise.all([
-        analyticsService.getRealTimeMetrics(),
-        analyticsService.getKPIs(filter)
-      ]);
-      
-      setState({
-        metrics,
-        kpis,
-        loading: false,
-        error: null,
-        lastUpdated: new Date()
-      });
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Erro ao carregar dados'
-      }));
-    }
-  };
-
-  // Setup real-time updates
-  useEffect(() => {
-    loadAnalyticsData();
-    
-    if (isRealTime) {
-      const interval = setInterval(loadAnalyticsData, 30000); // Update every 30 seconds
-      setRefreshInterval(interval);
-      return () => {
-        clearInterval(interval);
-        setRefreshInterval(null);
-      };
-    }
-  }, [isRealTime, filter]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (refreshInterval) {
-        clearInterval(refreshInterval);
-      }
-    };
-  }, [refreshInterval]);
 
   // Simular dados em tempo real
   useEffect(() => {
@@ -182,33 +122,15 @@ const DashboardAnalytics: React.FC = () => {
         });
       }
       setChartData(newChartData);
-      setIsLoading(false);
+      setLoading(false);
+      setLastUpdated(new Date());
     };
 
     generateRealTimeData();
     const interval = setInterval(generateRealTimeData, 5000);
 
     return () => clearInterval(interval);
-  }, [selectedTimeRange]);
-
-  // Utility functions
-  const formatNumber = (num: number): string => {
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    } else if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toString();
-  };
-
-  const formatPercentage = (num: number): string => {
-    return `${num.toFixed(1)}%`;
-  };
-
-  const formatDuration = (ms: number): string => {
-    if (ms < 1000) return `${ms}ms`;
-    return `${(ms / 1000).toFixed(1)}s`;
-  };
+  }, []);
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -222,53 +144,45 @@ const DashboardAnalytics: React.FC = () => {
     }
   };
 
-  const getActivityColor = (type: string, severity?: string) => {
-    if (type === 'error') {
-      switch (severity) {
-        case 'critical': return 'text-red-600 bg-red-50';
-        case 'high': return 'text-red-500 bg-red-50';
-        case 'medium': return 'text-orange-500 bg-orange-50';
-        default: return 'text-yellow-500 bg-yellow-50';
-      }
-    }
+  const getActivityColor = (type: string) => {
     switch (type) {
       case 'message': return 'text-blue-600 bg-blue-50';
       case 'auth': return 'text-green-600 bg-green-50';
       case 'api': return 'text-purple-600 bg-purple-50';
       case 'export': return 'text-indigo-600 bg-indigo-50';
       case 'config': return 'text-gray-600 bg-gray-50';
+      case 'error': return 'text-red-600 bg-red-50';
       default: return 'text-gray-600 bg-gray-50';
     }
   };
 
-  // Event handlers
   const handleRefresh = () => {
-    loadAnalyticsData();
+    setLoading(true);
+    // Simular refresh
+    setTimeout(() => {
+      setLoading(false);
+      setLastUpdated(new Date());
+    }, 1000);
   };
 
-  const handleExportData = async () => {
-    try {
-      const data = await analyticsService.exportData(filter, 'csv');
-      // Create download link
-      const blob = new Blob([data], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `analytics-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Erro ao exportar dados:', error);
-    }
+  const handleExportData = () => {
+    const csvContent = "data:text/csv;charset=utf-8," + 
+      "Métrica,Valor\n" +
+      `Usuários Ativos,${analytics.activeUsers}\n` +
+      `Mensagens Totais,${analytics.totalMessages}\n` +
+      `Tempo de Resposta,${Math.round(analytics.avgResponseTime)}ms\n` +
+      `Taxa de Sucesso,${analytics.successRate.toFixed(1)}%\n`;
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `analytics-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  const handleFilterChange = (newFilter: Partial<AnalyticsFilter>) => {
-    setFilter(prev => ({ ...prev, ...newFilter }));
-  };
-
-  const kpiCards = useMemo(() => [
+  const kpiCards: KPICard[] = [
     {
       title: 'Usuários Ativos',
       value: analytics.activeUsers.toLocaleString(),
@@ -333,9 +247,9 @@ const DashboardAnalytics: React.FC = () => {
       color: 'from-red-500 to-red-600',
       trend: 'down'
     }
-  ], [analytics]);
+  ];
 
-  if (state.loading && state.metrics.length === 0) {
+  if (loading && chartData.length === 0) {
     return (
       <div className="p-6 space-y-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
         <div className="flex items-center justify-center h-64">
@@ -353,12 +267,12 @@ const DashboardAnalytics: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard Analytics Enterprise</h1>
-          <p className="text-gray-600">Métricas avançadas em tempo real do sistema Aithos RAG</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard Analytics</h1>
+          <p className="text-gray-600">Métricas em tempo real do sistema Aithos RAG</p>
           <div className="flex items-center gap-2 mt-2">
             <Clock className="w-4 h-4 text-gray-500" />
             <span className="text-sm text-gray-500">
-              Última atualização: {state.lastUpdated.toLocaleTimeString()}
+              Última atualização: {lastUpdated.toLocaleTimeString()}
             </span>
           </div>
         </div>
@@ -377,10 +291,10 @@ const DashboardAnalytics: React.FC = () => {
           {/* Controls */}
           <button
             onClick={handleRefresh}
-            disabled={state.loading}
+            disabled={loading}
             className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
-            <RefreshCw className={`w-4 h-4 ${state.loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Atualizar
           </button>
           
@@ -405,36 +319,27 @@ const DashboardAnalytics: React.FC = () => {
         </div>
       </div>
 
-      {/* Error State */}
-      {state.error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <XCircle className="w-5 h-5 text-red-600" />
-            <span className="text-red-800 font-medium">Erro ao carregar dados</span>
-          </div>
-          <p className="text-red-700 mt-1">{state.error}</p>
-        </div>
-      )}
+
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {kpiCards.map((kpi, index) => {
           const Icon = kpi.icon;
           return (
-            <div key={index} className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700 hover:border-purple-500 transition-all duration-300 group">
+            <div key={index} className="bg-white rounded-xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300">
               <div className="flex items-center justify-between mb-4">
                 <div className={`p-3 rounded-lg bg-gradient-to-r ${kpi.color}`}>
                   <Icon className="w-6 h-6 text-white" />
                 </div>
                 <div className={`text-sm font-medium ${
-                  kpi.trend === 'up' ? 'text-green-400' : 'text-red-400'
+                  kpi.trend === 'up' ? 'text-green-600' : 'text-red-600'
                 }`}>
                   {kpi.change}
                 </div>
               </div>
               <div>
-                <h3 className="text-slate-400 text-sm font-medium mb-1">{kpi.title}</h3>
-                <p className="text-2xl font-bold text-white group-hover:text-purple-300 transition-colors">
+                <h3 className="text-gray-600 text-sm font-medium mb-1">{kpi.title}</h3>
+                <p className="text-2xl font-bold text-gray-900">
                   {kpi.value}
                 </p>
               </div>
@@ -446,51 +351,37 @@ const DashboardAnalytics: React.FC = () => {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Messages Chart */}
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
+        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-white">Mensagens por Hora</h3>
-            <BarChart3 className="w-5 h-5 text-purple-400" />
+            <h3 className="text-xl font-semibold text-gray-900">Mensagens por Hora</h3>
+            <BarChart3 className="w-5 h-5 text-blue-600" />
           </div>
-          <div className="h-64 flex items-end space-x-2">
-            {chartData.slice(-12).map((data, index) => {
-              const height = (data.messages / Math.max(...chartData.map(d => d.messages))) * 100;
-              return (
-                <div key={index} className="flex-1 flex flex-col items-center">
-                  <div 
-                    className="w-full bg-gradient-to-t from-purple-600 to-purple-400 rounded-t transition-all duration-500 hover:from-purple-500 hover:to-purple-300"
-                    style={{ height: `${height}%` }}
-                  ></div>
-                  <span className="text-xs text-slate-400 mt-2">{data.time}</span>
-                </div>
-              );
-            })}
-          </div>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData.slice(-12)}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="time" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="messages" fill="#3B82F6" />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
         {/* Response Time Chart */}
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
+        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-white">Tempo de Resposta</h3>
-            <Activity className="w-5 h-5 text-green-400" />
+            <h3 className="text-xl font-semibold text-gray-900">Tempo de Resposta</h3>
+            <Activity className="w-5 h-5 text-green-600" />
           </div>
-          <div className="h-64 flex items-end space-x-1">
-            {chartData.slice(-24).map((data, index) => {
-              const height = ((2500 - data.responseTime) / 2000) * 100;
-              return (
-                <div key={index} className="flex-1">
-                  <div 
-                    className="w-full bg-gradient-to-t from-green-600 to-green-400 rounded-t transition-all duration-300"
-                    style={{ height: `${Math.max(height, 10)}%` }}
-                  ></div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex justify-between text-xs text-slate-400 mt-2">
-            <span>Rápido</span>
-            <span>Médio</span>
-            <span>Lento</span>
-          </div>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={chartData.slice(-12)}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="time" />
+              <YAxis />
+              <Tooltip />
+              <Line type="monotone" dataKey="responseTime" stroke="#10B981" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
@@ -515,26 +406,14 @@ const DashboardAnalytics: React.FC = () => {
         <div className="space-y-3">
           {activities.map((activity) => (
             <div key={activity.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getActivityColor(activity.type, activity.severity)}`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getActivityColor(activity.type)}`}>
                 {getActivityIcon(activity.type)}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-gray-900 text-sm font-medium truncate">
                   <span className="font-semibold">{activity.user}</span> {activity.action}
                 </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-gray-500 text-xs">{activity.time}</p>
-                  {activity.severity && (
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      activity.severity === 'critical' ? 'bg-red-100 text-red-700' :
-                      activity.severity === 'high' ? 'bg-red-100 text-red-600' :
-                      activity.severity === 'medium' ? 'bg-orange-100 text-orange-600' :
-                      'bg-yellow-100 text-yellow-600'
-                    }`}>
-                      {activity.severity}
-                    </span>
-                  )}
-                </div>
+                <p className="text-gray-500 text-xs mt-1">{activity.time}</p>
               </div>
               <div className={`px-3 py-1 rounded-full text-xs font-medium ${
                 activity.type === 'message' ? 'bg-blue-100 text-blue-700' :
@@ -542,7 +421,6 @@ const DashboardAnalytics: React.FC = () => {
                 activity.type === 'api' ? 'bg-purple-100 text-purple-700' :
                 activity.type === 'export' ? 'bg-indigo-100 text-indigo-700' :
                 activity.type === 'config' ? 'bg-gray-100 text-gray-700' :
-                activity.type === 'error' ? 'bg-red-100 text-red-700' :
                 'bg-gray-100 text-gray-700'
               }`}>
                 {activity.type}
@@ -570,8 +448,8 @@ const DashboardAnalytics: React.FC = () => {
               <div className="text-xs text-gray-500">API Calls</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-red-600">{activities.filter(a => a.type === 'error').length}</div>
-              <div className="text-xs text-gray-500">Erros</div>
+              <div className="text-2xl font-bold text-gray-600">{activities.filter(a => a.type === 'error').length}</div>
+              <div className="text-xs text-gray-500">Outros</div>
             </div>
           </div>
         </div>

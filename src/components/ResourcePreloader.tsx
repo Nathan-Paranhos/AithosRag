@@ -453,7 +453,7 @@ export const ResourcePreloader: React.FC<ResourcePreloaderProps> = ({
                 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900 truncate">
+                    <span className="text-sm font-medium text-white truncate">
                       {status.url.split('/').pop()}
                     </span>
                     <span className={cn(

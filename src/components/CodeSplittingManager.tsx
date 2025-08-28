@@ -1,5 +1,5 @@
-import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
-import { Loader2, Package, AlertCircle, CheckCircle } from 'lucide-react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
+import { Loader2, Package, CheckCircle, AlertCircle } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 interface ChunkInfo {
@@ -113,14 +113,15 @@ class ChunkManager {
     await Promise.allSettled(preloadPromises);
   }
 
-  // Get chunk URL (this would need to be implemented based on your build setup)
+  // Get chunk URL (simplified implementation for Vite)
   private getChunkUrl(chunkName: string): string | null {
-    // In a real implementation, this would use webpack's __webpack_require__.p
-    // and chunk manifest to resolve the actual chunk URL
-    if (typeof __webpack_require__ !== 'undefined' && __webpack_require__.p) {
-      return `${__webpack_require__.p}${chunkName}.js`;
+    // For Vite, we can try to construct the chunk URL based on the base path
+    try {
+      const base = import.meta.env?.BASE_URL || '/';
+      return `${base}assets/${chunkName}.js`;
+    } catch {
+      return null;
     }
-    return null;
   }
 
   // Get chunk statistics
@@ -155,13 +156,30 @@ class ChunkManager {
 }
 
 // Enhanced lazy loading with chunk tracking
-export const createLazyComponent = <T extends React.ComponentType<any>>(
+export const createLazyComponent = <T extends React.ComponentType<unknown>>(
   importFn: () => Promise<{ default: T }>,
   chunkName: string,
   estimatedSize: number = 0
 ) => {
   const chunkManager = ChunkManager.getInstance();
   chunkManager.registerChunk(chunkName, estimatedSize);
+
+  // Function for future use to load components individually
+  // const loadComponent = async (componentName: string): Promise<React.ComponentType<unknown>> => {
+  //   const startTime = performance.now();
+  //   chunkManager.markChunkLoading(componentName);
+  //
+  //   try {
+  //     const module = await importFn();
+  //     const loadTime = performance.now() - startTime;
+  //     chunkManager.markChunkLoaded(componentName, loadTime);
+  //     return module;
+  //   } catch (error) {
+  //     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  //     chunkManager.markChunkError(componentName, errorMessage);
+  //     throw error;
+  //   }
+  // };
 
   return lazy(async () => {
     const startTime = performance.now();
@@ -186,7 +204,7 @@ const DefaultFallback: React.FC<{ chunkName?: string }> = ({ chunkName }) => (
     <div className="flex items-center gap-3">
       <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
       <div>
-        <p className="text-sm font-medium text-gray-900">Loading component...</p>
+        <p className="text-sm font-medium text-white">Loading component...</p>
         {chunkName && (
           <p className="text-xs text-gray-500">Chunk: {chunkName}</p>
         )}
@@ -200,7 +218,7 @@ class ChunkErrorBoundary extends React.Component<
   { children: React.ReactNode; onError?: (error: Error) => void },
   { hasError: boolean; error?: Error }
 > {
-  constructor(props: any) {
+  constructor(props: { children: React.ReactNode; onError?: (error: Error) => void }) {
     super(props);
     this.state = { hasError: false };
   }
@@ -244,6 +262,7 @@ class ChunkErrorBoundary extends React.Component<
 // Chunk loading statistics component
 const ChunkStats: React.FC<{ className?: string }> = ({ className }) => {
   const [chunks, setChunks] = useState<Map<string, ChunkInfo>>(new Map());
+  // const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const chunkManager = ChunkManager.getInstance();
 
   useEffect(() => {
@@ -315,7 +334,7 @@ const ChunkStats: React.FC<{ className?: string }> = ({ className }) => {
             
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm font-medium text-white">
                   {chunk.name}
                 </span>
                 {chunk.size > 0 && (
@@ -352,7 +371,7 @@ export const CodeSplittingManager: React.FC<CodeSplittingManagerProps> = ({
   className
 }) => {
   const chunkManager = ChunkManager.getInstance();
-  const [chunks, setChunks] = useState<Map<string, ChunkInfo>>(new Map());
+  const [, setChunks] = useState<Map<string, ChunkInfo>>(new Map()); // chunks will be used for future chunk monitoring features
 
   // Subscribe to chunk updates
   useEffect(() => {

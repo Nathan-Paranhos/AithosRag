@@ -172,7 +172,13 @@ class UserRateLimit {
       legacyHeaders: false,
       keyGenerator: (req) => this.generateKey(req, name),
       skip: (req) => this.shouldSkip(req, name),
-      onLimitReached: (req, res, options) => this.onLimitReached(req, res, options, name),
+      handler: (req, res, next, options) => {
+        this.onLimitReached(req, res, options, name);
+        res.status(options.statusCode).json({
+          error: options.message || 'Too many requests, please try again later.',
+          retryAfter: Math.round(options.windowMs / 1000)
+        });
+      },
       ...config
     });
   }
@@ -296,7 +302,7 @@ class UserRateLimit {
         const userId = req.user?.id;
         if (userId && this.options.customLimits.has(userId)) {
           const customLimit = this.options.customLimits.get(userId);
-          if (customLimit.general) {
+          if (customLimit.general && rateLimiter.options) {
             rateLimiter.options.max = customLimit.general;
           }
         }
@@ -329,7 +335,7 @@ class UserRateLimit {
       const userTier = this.getUserTier(req);
       const actionConfig = this.options.actionLimits[actionType];
       
-      if (actionConfig && typeof actionConfig.max === 'object') {
+      if (actionConfig && typeof actionConfig.max === 'object' && rateLimiter.options) {
         rateLimiter.options.max = actionConfig.max[userTier] || actionConfig.max.user;
       }
       
@@ -337,7 +343,7 @@ class UserRateLimit {
       const userId = req.user?.id;
       if (userId && this.options.customLimits.has(userId)) {
         const customLimit = this.options.customLimits.get(userId);
-        if (customLimit[actionType]) {
+        if (customLimit[actionType] && rateLimiter.options) {
           rateLimiter.options.max = customLimit[actionType];
         }
       }

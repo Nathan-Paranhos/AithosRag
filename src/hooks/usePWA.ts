@@ -21,7 +21,7 @@ interface PWAState {
   subscribeToNotifications: () => Promise<void>;
 }
 
-export const usePWA = (): PWAState => {
+const usePWA = (): PWAState => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isInstalled, setIsInstalled] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
@@ -33,9 +33,8 @@ export const usePWA = (): PWAState => {
   // Check if app is installed
   useEffect(() => {
     const checkInstalled = () => {
-      // Check if running in standalone mode (installed PWA)
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-      const isInWebAppiOS = (window.navigator as any).standalone === true;
+      const isInWebAppiOS = (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
       const isInWebAppChrome = window.matchMedia('(display-mode: minimal-ui)').matches;
       
       setIsInstalled(isStandalone || isInWebAppiOS || isInWebAppChrome);
@@ -43,7 +42,6 @@ export const usePWA = (): PWAState => {
 
     checkInstalled();
     
-    // Listen for display mode changes
     const mediaQuery = window.matchMedia('(display-mode: standalone)');
     mediaQuery.addEventListener('change', checkInstalled);
     
@@ -125,13 +123,11 @@ export const usePWA = (): PWAState => {
 
       console.log('Service Worker registered successfully:', registration);
 
-      // Handle updates
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // New content is available, notify user
               console.log('New content available, please refresh.');
             }
           });
@@ -195,7 +191,6 @@ export const usePWA = (): PWAState => {
         notification.close();
       };
 
-      // Auto close after 5 seconds
       setTimeout(() => {
         notification.close();
       }, 5000);
@@ -214,23 +209,18 @@ export const usePWA = (): PWAState => {
     try {
       const registration = await navigator.serviceWorker.ready;
       
-      // Check if already subscribed
       const existingSubscription = await registration.pushManager.getSubscription();
       if (existingSubscription) {
         console.log('Already subscribed to push notifications');
         return;
       }
 
-      // Subscribe to push notifications
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: null // You would need to provide your VAPID key here
+        applicationServerKey: null
       });
 
       console.log('Subscribed to push notifications:', subscription);
-      
-      // Here you would typically send the subscription to your server
-      // await sendSubscriptionToServer(subscription);
     } catch (error) {
       console.error('Error subscribing to push notifications:', error);
     }
@@ -249,5 +239,5 @@ export const usePWA = (): PWAState => {
   };
 };
 
-export { usePWA };
 export default usePWA;
+export { usePWA };

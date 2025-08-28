@@ -22,7 +22,7 @@ export interface CacheEntry<T> {
 /**
  * Memory Cache with LRU eviction
  */
-export class MemoryCache<T = any> {
+export class MemoryCache<T = unknown> {
   private cache = new Map<string, CacheEntry<T>>();
   private accessOrder = new Map<string, number>();
   private currentSize = 0;
@@ -197,7 +197,7 @@ export class MemoryCache<T = any> {
  * API Response Cache
  */
 export class APICache {
-  private cache = new MemoryCache<any>(200, 10 * 60 * 1000); // 10 minutes default
+  private cache = new MemoryCache<unknown>(200, 10 * 60 * 1000); // 10 minutes default
 
   async get<T>(
     url: string,
@@ -211,14 +211,9 @@ export class APICache {
       return cached;
     }
 
-    try {
-      const data = await fetcher();
-      this.cache.set(cacheKey, data, options);
-      return data;
-    } catch (error) {
-      // Don't cache errors, but allow them to propagate
-      throw error;
-    }
+    const data = await fetcher();
+    this.cache.set(cacheKey, data, options);
+    return data;
   }
 
   invalidate(url: string): void {
@@ -311,9 +306,9 @@ export class ImageCache {
  * State Cache for component state persistence
  */
 export class StateCache {
-  private cache = new MemoryCache<any>(100, 60 * 60 * 1000); // 1 hour
+  private cache = new MemoryCache<unknown>(100, 60 * 60 * 1000); // 1 hour
 
-  saveState(key: string, state: any, persistent = false): void {
+  saveState(key: string, state: unknown, persistent = false): void {
     this.cache.set(key, state, { persistent });
   }
 
@@ -339,7 +334,7 @@ export const stateCache = new StateCache();
 /**
  * Cache decorator for functions
  */
-export function cached<T extends (...args: any[]) => any>(
+export function cached<T extends (...args: unknown[]) => unknown>(
   fn: T,
   options: CacheOptions & { keyGenerator?: (...args: Parameters<T>) => string } = {}
 ): T {
@@ -401,7 +396,7 @@ export function useCachedAPI<T>(
     return () => {
       cancelled = true;
     };
-  }, [url]);
+  }, [url, fetcher, options]);
 
   const invalidate = React.useCallback(() => {
     apiCache.invalidate(url);

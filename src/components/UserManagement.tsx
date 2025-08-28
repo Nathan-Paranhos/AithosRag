@@ -12,32 +12,19 @@ import {
   Trash2,
   Shield,
   Key,
-  Mail,
-  Phone,
-  Calendar,
-  MapPin,
-  Building,
   Crown,
   AlertTriangle,
   CheckCircle,
   XCircle,
   Clock,
   Download,
-  Upload,
-  RefreshCw,
-  Settings,
   Eye,
-  EyeOff,
-  Lock,
-  Unlock,
   UserCheck,
-  UserX,
   Activity,
   TrendingUp,
   BarChart3
 } from 'lucide-react';
-import { jwtAuthService, useAuth } from './JWTAuthSystem';
-import { authService } from '../services/authService';
+import { useAuth } from './JWTAuthSystem';
 
 // Types
 interface User {
@@ -127,7 +114,7 @@ interface UserFilters {
 
 const UserManagement: React.FC = () => {
   // Auth context
-  const { user: currentUser, hasPermission, hasRole } = useAuth();
+  const { hasPermission } = useAuth();
   
   // State
   const [users, setUsers] = useState<User[]>([]);
@@ -140,10 +127,10 @@ const UserManagement: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState<'users' | 'roles' | 'permissions' | 'analytics'>('users');
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'table'>('table');
-  const [sortBy, setSortBy] = useState<keyof User>('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortBy] = useState<keyof User>('createdAt');
+  const [sortOrder] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize] = useState(25);
   const [filters, setFilters] = useState<UserFilters>({
     search: '',
     role: '',
@@ -154,13 +141,7 @@ const UserManagement: React.FC = () => {
      permissions: []
    });
 
-   // Modal states
-  const [showUserModal, setShowUserModal] = useState(false);
-  const [showRoleModal, setShowRoleModal] = useState(false);
-  const [showPermissionModal, setShowPermissionModal] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [editingRole, setEditingRole] = useState<Role | null>(null);
-  const [showUserDetails, setShowUserDetails] = useState<User | null>(null);
+   // Modal states (removed unused variables)
 
   // Generate mock data
   const generateMockUsers = (): User[] => {
@@ -365,7 +346,7 @@ const UserManagement: React.FC = () => {
         setRoles(mockRoles);
         setPermissions(mockPermissions);
         setStats(mockStats);
-      } catch (err) {
+      } catch {
         setError('Failed to load user data');
       } finally {
         setLoading(false);
@@ -383,7 +364,7 @@ const UserManagement: React.FC = () => {
 
   // Filter and sort users
   const filteredUsers = useMemo(() => {
-    let filtered = users.filter(user => {
+    const filtered = users.filter(user => {
       // Search filter
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
@@ -540,7 +521,7 @@ const UserManagement: React.FC = () => {
       }
       
       setSelectedUsers([]);
-    } catch (err) {
+    } catch {
       setError('Failed to perform bulk action');
     }
   };
@@ -570,7 +551,7 @@ const UserManagement: React.FC = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch {
       setError('Failed to export users');
     }
   };
@@ -600,7 +581,7 @@ const UserManagement: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+          <h1 className="text-2xl font-bold text-white">User Management</h1>
           <p className="text-gray-600 mt-1">
             Manage users, roles, and permissions across your organization
           </p>
@@ -630,7 +611,7 @@ const UserManagement: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
+                <p className="text-2xl font-bold text-white">{stats.totalUsers}</p>
               </div>
               <div className="p-3 bg-blue-50 rounded-lg">
                 <Users className="w-6 h-6 text-blue-600" />
@@ -913,7 +894,7 @@ const UserManagement: React.FC = () => {
                             className="w-10 h-10 rounded-full mr-4"
                           />
                           <div>
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-medium text-white">
                               {user.firstName} {user.lastName}
                             </div>
                             <div className="text-sm text-gray-500">{user.email}</div>
@@ -932,7 +913,7 @@ const UserManagement: React.FC = () => {
                           <span className="ml-1">{user.status}</span>
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
+                      <td className="px-6 py-4 text-sm text-white">
                         {user.metadata.department || '-'}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
@@ -1042,7 +1023,7 @@ const UserManagement: React.FC = () => {
       {activeTab === 'roles' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-900">Roles Management</h2>
+            <h2 className="text-lg font-semibold text-white">Roles Management</h2>
             <button
               onClick={() => setShowRoleModal(true)}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -1058,7 +1039,7 @@ const UserManagement: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center">
                     <Shield className="w-5 h-5 text-blue-600 mr-2" />
-                    <h3 className="text-lg font-semibold text-gray-900">{role.name}</h3>
+                    <h3 className="text-lg font-semibold text-white">{role.name}</h3>
                   </div>
                   {role.isSystem && (
                     <span className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded">
@@ -1107,7 +1088,7 @@ const UserManagement: React.FC = () => {
       {activeTab === 'permissions' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-900">Permissions Management</h2>
+            <h2 className="text-lg font-semibold text-white">Permissions Management</h2>
             <button
               onClick={() => setShowPermissionModal(true)}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -1147,12 +1128,12 @@ const UserManagement: React.FC = () => {
                     <tr key={permission.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{permission.name}</div>
+                          <div className="text-sm font-medium text-white">{permission.name}</div>
                           <div className="text-sm text-gray-500">{permission.description}</div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{permission.category}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{permission.resource}</td>
+                      <td className="px-6 py-4 text-sm text-white">{permission.category}</td>
+                      <td className="px-6 py-4 text-sm text-white">{permission.resource}</td>
                       <td className="px-6 py-4">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                           {permission.action}

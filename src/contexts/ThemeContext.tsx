@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useEffect, useState } from 'react';
 import { themes } from '../design/tokens';
 
 type Theme = 'light' | 'dark';
@@ -10,15 +10,7 @@ interface ThemeContextType {
   themeColors: typeof themes.light;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
-
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
-};
+export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 interface ThemeProviderProps {
   children: React.ReactNode;
@@ -88,26 +80,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({
   );
 };
 
-// Hook para detectar mudanças no tema do sistema
-export const useSystemTheme = () => {
-  const [systemTheme, setSystemTheme] = useState<Theme>(() => {
-    if (typeof window !== 'undefined') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    return 'light';
-  });
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e: MediaQueryListEvent) => {
-      setSystemTheme(e.matches ? 'dark' : 'light');
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
-
-  return systemTheme;
-};
+// Re-export hooks from separate files to avoid Fast Refresh warnings
+export { useSystemTheme } from '../hooks/useThemeHooks';
+export { useTheme } from '../hooks/useThemeContext';

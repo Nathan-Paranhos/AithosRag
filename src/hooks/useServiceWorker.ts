@@ -60,7 +60,7 @@ export const useServiceWorker = (): ServiceWorkerState & ServiceWorkerActions =>
       console.error('Erro ao registrar Service Worker:', error);
       setState(prev => ({ ...prev, installing: false }));
     }
-  }, [state.isSupported]);
+  }, [state.isSupported, setupServiceWorkerListeners]);
 
   // Desregistrar Service Worker
   const unregister = useCallback(async () => {
@@ -203,7 +203,7 @@ export const useServiceWorker = (): ServiceWorkerState & ServiceWorkerActions =>
       console.log('Service Worker controller mudou');
       window.location.reload();
     });
-  }, [getCacheStatus]);
+  }, [getCacheStatus, setState]);
 
   // Efeito para monitorar status online/offline
   useEffect(() => {

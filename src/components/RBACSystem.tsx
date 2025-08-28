@@ -74,7 +74,7 @@ interface AccessLog {
 }
 
 const RBACSystem: React.FC = () => {
-  const { user: currentUser, hasPermission, hasRole } = useAuth();
+  const { user: currentUser, hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState<'roles' | 'permissions' | 'assignments' | 'logs'>('roles');
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -128,7 +128,7 @@ const RBACSystem: React.FC = () => {
         name: 'Super Admin',
         description: 'Full system access with all permissions',
         permissions: ['sys-admin', 'sys-config', 'sys-monitor', 'user-create', 'user-read', 'user-update', 'user-delete', 'content-create', 'content-read', 'content-update', 'content-delete', 'analytics-view', 'analytics-export', 'security-audit', 'security-config'],
-        color: '#ef4444',
+        color: '#0ea5e9',
         icon: 'Crown',
         isSystem: true,
         userCount: 2,
@@ -140,7 +140,7 @@ const RBACSystem: React.FC = () => {
         name: 'Administrator',
         description: 'Administrative access with most permissions',
         permissions: ['sys-config', 'sys-monitor', 'user-create', 'user-read', 'user-update', 'content-create', 'content-read', 'content-update', 'content-delete', 'analytics-view', 'analytics-export'],
-        color: '#f59e0b',
+        color: '#38bdf8',
         icon: 'Star',
         isSystem: true,
         userCount: 5,
@@ -152,7 +152,7 @@ const RBACSystem: React.FC = () => {
         name: 'Manager',
         description: 'Management access with content and user permissions',
         permissions: ['user-read', 'user-update', 'content-create', 'content-read', 'content-update', 'analytics-view'],
-        color: '#3b82f6',
+        color: '#0ea5e9',
         icon: 'Users',
         isSystem: false,
         userCount: 12,
@@ -164,7 +164,7 @@ const RBACSystem: React.FC = () => {
         name: 'Content Editor',
         description: 'Content creation and editing permissions',
         permissions: ['content-create', 'content-read', 'content-update'],
-        color: '#10b981',
+        color: '#0284c7',
         icon: 'Edit',
         isSystem: false,
         userCount: 25,
@@ -176,7 +176,7 @@ const RBACSystem: React.FC = () => {
         name: 'Viewer',
         description: 'Read-only access to content and basic analytics',
         permissions: ['content-read', 'analytics-view'],
-        color: '#6b7280',
+        color: '#64748b',
         icon: 'Eye',
         isSystem: false,
         userCount: 150,
@@ -239,7 +239,7 @@ const RBACSystem: React.FC = () => {
         setRoles(generateMockRoles());
         setAssignments(generateMockAssignments());
         setAccessLogs(generateMockAccessLogs());
-      } catch (err) {
+      } catch {
         setError('Erro ao carregar dados do RBAC');
       } finally {
         setLoading(false);
@@ -604,7 +604,7 @@ const RBACSystem: React.FC = () => {
                       return (
                         <tr key={assignment.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-medium text-white">
                               {assignment.userId}
                             </div>
                           </td>
@@ -621,7 +621,7 @@ const RBACSystem: React.FC = () => {
                                   {role.icon === 'Edit' && <Edit className="w-3 h-3" />}
                                   {role.icon === 'Eye' && <Eye className="w-3 h-3" />}
                                 </div>
-                                <span className="text-sm text-gray-900">{role.name}</span>
+                                <span className="text-sm text-white">{role.name}</span>
                               </div>
                             )}
                           </td>
@@ -692,17 +692,17 @@ const RBACSystem: React.FC = () => {
                     {filteredLogs.slice(0, 20).map((log) => (
                       <tr key={log.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-white">
                             {log.userName}
                           </div>
                           <div className="text-sm text-gray-500">
                             {log.userId}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                           {log.action}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                           {log.resource}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

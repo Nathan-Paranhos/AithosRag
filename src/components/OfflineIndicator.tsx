@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wifi, WifiOff, Download, Upload, AlertCircle, CheckCircle } from 'lucide-react';
-import { usePWA } from '../hooks/usePWA';
+import usePWA from '../hooks/usePWA';
 
 interface OfflineIndicatorProps {
   className?: string;

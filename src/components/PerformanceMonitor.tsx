@@ -72,14 +72,14 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
       // LCP Observer
       const lcpObserver = new PerformanceObserver((list) => {
         const entries = list.getEntries();
-        const lastEntry = entries[entries.length - 1] as any;
+        const lastEntry = entries[entries.length - 1] as PerformanceEntry & { startTime: number };
         vitals.lcp = lastEntry.startTime;
       });
       
       // FID Observer
       const fidObserver = new PerformanceObserver((list) => {
         const entries = list.getEntries();
-        entries.forEach((entry: any) => {
+        entries.forEach((entry: PerformanceEntry & { processingStart: number; startTime: number }) => {
           vitals.fid = entry.processingStart - entry.startTime;
         });
       });
@@ -87,7 +87,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
       // CLS Observer
       const clsObserver = new PerformanceObserver((list) => {
         let clsValue = 0;
-        list.getEntries().forEach((entry: any) => {
+        list.getEntries().forEach((entry: PerformanceEntry & { hadRecentInput?: boolean; value: number }) => {
           if (!entry.hadRecentInput) {
             clsValue += entry.value;
           }
@@ -126,7 +126,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
     
     // Memory usage
     if ('memory' in performance) {
-      const memory = (performance as any).memory;
+      const memory = (performance as any).memory as { usedJSHeapSize: number; totalJSHeapSize: number };
       runtime.memoryUsage = memory.usedJSHeapSize / 1024 / 1024; // MB
       runtime.jsHeapSize = memory.totalJSHeapSize / 1024 / 1024; // MB
     }
@@ -136,7 +136,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
     
     // Network information
     if ('connection' in navigator) {
-      const connection = (navigator as any).connection;
+      const connection = (navigator as any).connection as { type?: string; effectiveType?: string; rtt?: number; downlink?: number };
       runtime.connectionType = connection.type || 'unknown';
       runtime.effectiveType = connection.effectiveType || 'unknown';
       runtime.rtt = connection.rtt || 0;

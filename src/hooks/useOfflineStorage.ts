@@ -30,8 +30,8 @@ interface MessageData {
 
 interface UserData {
   id: string;
-  preferences: any;
-  settings: any;
+  preferences: Record<string, unknown>;
+  settings: Record<string, unknown>;
   lastSync: number;
 }
 
@@ -39,7 +39,7 @@ interface PendingSyncItem {
   id: string;
   type: 'conversation' | 'message' | 'user_data';
   action: 'create' | 'update' | 'delete';
-  data: any;
+  data: Record<string, unknown>;
   timestamp: number;
   retries: number;
 }

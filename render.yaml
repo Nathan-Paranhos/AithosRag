@@ -1,25 +1,26 @@
 services:
   - type: web
     name: aithos-rag-api
-    runtime: node
+    env: node
     plan: free
-    region: oregon
     buildCommand: cd api && npm install
     startCommand: cd api && npm start
-    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
       - key: GROQ_API_KEY
-        sync: false # Será configurado manualmente no painel do Render
-    autoDeploy: true
-    rootDir: .
-    scaling:
-      minInstances: 1
-      maxInstances: 1
-    disk:
-      name: aithos-rag-disk
-      size: 1GB
-      mount: /opt/render/project/src
+        sync: false
+    healthCheckPath: /api/health
+    
+  - type: static
+    name: aithos-rag-frontend
+    buildCommand: npm install && npm run build
+    publishDir: ./dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: aithos-rag-api
+          property: host

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Download, Upload, FileText, Database, Settings, History, Users, Shield, Calendar, Filter, Search, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { Download, Upload, FileText, Database, Settings, History, Users, Shield, Search, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Input } from './ui/Input';
@@ -13,7 +13,7 @@ interface ExportData {
     id: string;
     name: string;
     email: string;
-    preferences: Record<string, any>;
+    preferences: Record<string, unknown>;
   };
   conversations: Array<{
     id: string;
@@ -23,7 +23,7 @@ interface ExportData {
       role: 'user' | 'assistant';
       content: string;
       timestamp: string;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }>;
     createdAt: string;
     updatedAt: string;
@@ -33,9 +33,9 @@ interface ExportData {
   settings: {
     theme: string;
     language: string;
-    voiceSettings: Record<string, any>;
-    aiPreferences: Record<string, any>;
-    notifications: Record<string, any>;
+    voiceSettings: Record<string, unknown>;
+    aiPreferences: Record<string, unknown>;
+    notifications: Record<string, unknown>;
   };
   documents: Array<{
     id: string;

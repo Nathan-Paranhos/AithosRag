@@ -38,7 +38,6 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     ...props
   }, ref) => {
     const [showPassword, setShowPassword] = React.useState(false);
-    const [isFocused, setIsFocused] = React.useState(false);
     const isPassword = type === 'password';
     const hasValue = value !== undefined && value !== '';
 
@@ -134,14 +133,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             disabled={disabled || loading}
             value={value}
-            onFocus={(e) => {
-              setIsFocused(true);
-              props.onFocus?.(e);
-            }}
-            onBlur={(e) => {
-              setIsFocused(false);
-              props.onBlur?.(e);
-            }}
+            onFocus={props.onFocus}
+            onBlur={props.onBlur}
             {...props}
           />
           

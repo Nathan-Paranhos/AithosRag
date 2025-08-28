@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-08-25T11:05:03.169Z",
+  "timestamp": "2025-08-28T10:28:40.363Z",
   "metrics": {
     "system": {
       "totalRequests": 0,
@@ -7,8 +7,8 @@
       "totalTokensGenerated": 0,
       "totalTokensConsumed": 0,
       "averageResponseTime": 0,
-      "uptime": 108342701,
-      "lastReset": "2025-08-24T04:59:20.468Z"
+      "uptime": 300570,
+      "lastReset": "2025-08-28T10:23:39.799Z"
     },
     "models": {
       "meta-llama/llama-4-maverick-17b-128e-instruct": {
@@ -54,7 +54,7 @@
           0,
           0
         ],
-        "currentHour": 1,
+        "currentHour": 7,
         "tokensPerSecond": 0,
         "throughput": 0,
         "isHealthy": true,
@@ -108,7 +108,7 @@
           0,
           0
         ],
-        "currentHour": 1,
+        "currentHour": 7,
         "tokensPerSecond": 0,
         "throughput": 0,
         "isHealthy": true,
@@ -162,7 +162,7 @@
           0,
           0
         ],
-        "currentHour": 1,
+        "currentHour": 7,
         "tokensPerSecond": 0,
         "throughput": 0,
         "isHealthy": true,
@@ -216,7 +216,7 @@
           0,
           0
         ],
-        "currentHour": 1,
+        "currentHour": 7,
         "tokensPerSecond": 0,
         "throughput": 0,
         "isHealthy": true,

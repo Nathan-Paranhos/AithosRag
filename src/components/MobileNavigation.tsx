@@ -10,13 +10,12 @@ import {
   X,
   ChevronUp
 } from 'lucide-react';
-import { useGestures } from '../hooks/useGestures';
-import { usePWA } from '../hooks/usePWA';
+import usePWA from '../hooks/usePWA';
 
 interface NavigationItem {
   id: string;
   label: string;
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<{ size?: number; className?: string; }>;
   path: string;
   badge?: number;
 }
@@ -73,24 +72,16 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // Gesture handlers
-  const { ref: gestureRef } = useGestures({
-    onSwipeLeft: () => {
+  // Navigation handlers
+  const handleSwipeNavigation = (direction: 'left' | 'right') => {
+    if (direction === 'left') {
       const nextIndex = (activeIndex + 1) % navigationItems.length;
       handleNavigation(navigationItems[nextIndex].path);
-    },
-    onSwipeRight: () => {
+    } else {
       const prevIndex = activeIndex === 0 ? navigationItems.length - 1 : activeIndex - 1;
       handleNavigation(navigationItems[prevIndex].path);
-    },
-    onSwipeUp: () => {
-      setIsMenuOpen(true);
-    },
-    onSwipeDown: () => {
-      setIsMenuOpen(false);
-    },
-    swipeThreshold: 30
-  });
+    }
+  };
 
   const handleNavigation = (path: string) => {
     onNavigate(path);
@@ -105,7 +96,6 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
     <>
       {/* Bottom Navigation Bar */}
       <motion.nav
-        ref={gestureRef}
         className={`fixed bottom-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-t border-gray-200/50 dark:border-gray-700/50 ${className}`}
         initial={{ y: 100 }}
         animate={{ y: isVisible ? 0 : 100 }}

@@ -1,6 +1,6 @@
-import React, { useState, Suspense, lazy } from 'react';
-import { Link, Navigate, useLocation, Routes, Route } from 'react-router-dom';
-import { Home, Palette, Users, Shield, Building, BarChart3, Brain, History, Search, MessageSquare, Mic, Download, Menu, X } from '../utils/icons.tsx';
+import React, { useState } from 'react';
+import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Home, Menu, X } from 'lucide-react';
 import { Button } from './ui/Button';
 import { cn } from '../utils/cn';
 import { PageLoader } from './LoadingSpinner';
@@ -8,69 +8,13 @@ import ErrorBoundary from './ErrorBoundary';
 import { LazyRouteManager, createRouteConfig } from './LazyRouteManager';
 import { CodeSplittingManager } from './CodeSplittingManager';
 
-// Route configurations with advanced lazy loading
+// Configurações de rotas simplificadas
 const routeConfigs = [
-  createRouteConfig('/', () => import('./HomePage'), {
+  createRouteConfig('/', () => import('./HomePage.tsx').then(module => ({ default: module.default })), {
     chunkName: 'home',
     estimatedSize: 15000,
     preload: true,
     metadata: { title: 'Home', description: 'Página inicial' }
-  }),
-  createRouteConfig('/design-system', () => import('./DesignSystemDemo'), {
-    chunkName: 'design-system',
-    estimatedSize: 25000,
-    metadata: { title: 'Design System', description: 'Sistema de design' }
-  }),
-  createRouteConfig('/auth', () => import('./JWTAuthSystem'), {
-    chunkName: 'auth',
-    estimatedSize: 20000,
-    metadata: { title: 'Autenticação', description: 'Sistema de autenticação JWT' }
-  }),
-  createRouteConfig('/users', () => import('./UserManagement'), {
-    chunkName: 'users',
-    estimatedSize: 30000,
-    metadata: { title: 'Usuários', description: 'Gerenciamento de usuários' }
-  }),
-  createRouteConfig('/rbac', () => import('./RBACSystem'), {
-    chunkName: 'rbac',
-    estimatedSize: 22000,
-    metadata: { title: 'RBAC', description: 'Sistema de controle de acesso' }
-  }),
-  createRouteConfig('/multi-tenant', () => import('./MultiTenantDashboard'), {
-    chunkName: 'multi-tenant',
-    estimatedSize: 35000,
-    metadata: { title: 'Multi-Tenant', description: 'Dashboard multi-tenant' }
-  }),
-  createRouteConfig('/analytics', () => import('./DashboardAnalytics'), {
-    chunkName: 'analytics',
-    estimatedSize: 40000,
-    preload: true,
-    metadata: { title: 'Analytics', description: 'Dashboard de analytics' }
-  }),
-  createRouteConfig('/ai-history', () => import('./AIHistoryManager'), {
-    chunkName: 'ai-history',
-    estimatedSize: 28000,
-    metadata: { title: 'Histórico IA', description: 'Gerenciador de histórico IA' }
-  }),
-  createRouteConfig('/advanced-search', () => import('./AdvancedSearch'), {
-    chunkName: 'advanced-search',
-    estimatedSize: 25000,
-    metadata: { title: 'Busca Avançada', description: 'Sistema de busca avançada' }
-  }),
-  createRouteConfig('/collaboration', () => import('./RealTimeCollaboration'), {
-    chunkName: 'collaboration',
-    estimatedSize: 32000,
-    metadata: { title: 'Colaboração', description: 'Colaboração em tempo real' }
-  }),
-  createRouteConfig('/voice-io', () => import('./VoiceIO'), {
-    chunkName: 'voice-io',
-    estimatedSize: 18000,
-    metadata: { title: 'Voz I/O', description: 'Interface de voz' }
-  }),
-  createRouteConfig('/data-export', () => import('./DataExportImport'), {
-    chunkName: 'data-export',
-    estimatedSize: 24000,
-    metadata: { title: 'Export/Import', description: 'Exportação e importação de dados' }
   })
 ];
 
@@ -78,19 +22,7 @@ const Navigation: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
 
-  const navigationItems = [
-    { path: '/', label: 'Home', icon: Home },
-    { path: '/design-system', label: 'Design System', icon: Palette },
-    { path: '/auth', label: 'Autenticação', icon: Shield },
-    { path: '/users', label: 'Usuários', icon: Users },
-    { path: '/rbac', label: 'RBAC', icon: Shield },
-    { path: '/multi-tenant', label: 'Multi-Tenant', icon: Building },
-    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-    { path: '/ai-history', label: 'Histórico IA', icon: History },
-    { path: '/advanced-search', label: 'Busca Avançada', icon: Search },
-    { path: '/collaboration', label: 'Colaboração', icon: MessageSquare },
-    { path: '/voice-io', label: 'Voz I/O', icon: Mic },
-    { path: '/data-export', label: 'Export/Import', icon: Download }
+  const navigationItems: Array<{ path: string; label: string; icon: React.ComponentType<any> }> = [
   ];
 
   return (
@@ -98,12 +30,8 @@ const Navigation: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Link to="/" className="flex items-center space-x-2">
-                <Brain className="h-8 w-8 text-primary" />
-                <h1 className="text-xl font-bold text-primary">Aithos RAG</h1>
-              </Link>
-            </div>
+            <Link to="/" className="flex items-center space-x-2">
+            </Link>
           </div>
 
           {/* Desktop Navigation */}
@@ -193,7 +121,7 @@ const AppRouter: React.FC = () => {
     
     // Track route errors for analytics
     if (typeof window !== 'undefined' && 'gtag' in window) {
-      (window as any).gtag('event', 'route_error', {
+      (window as { gtag: (...args: unknown[]) => void }).gtag('event', 'route_error', {
         route_path: path,
         error_message: error.message
       });
@@ -213,14 +141,14 @@ const AppRouter: React.FC = () => {
         >
           <CodeSplittingManager
             fallback={<PageLoader message="Carregando componentes..." />}
-            onChunkLoad={(chunkName, loadTime) => {
-              console.log(`Chunk ${chunkName} loaded in ${Math.round(loadTime)}ms`);
+            onChunkLoad={() => {
+              // Silent chunk loading - no debug output
             }}
-            onChunkError={(chunkName, error) => {
-              console.error(`Chunk ${chunkName} failed to load:`, error);
+            onChunkError={() => {
+              // Silent error handling - no debug output
             }}
-            showLoadingStats={process.env.NODE_ENV === 'development'}
-            preloadChunks={['home', 'analytics']} // Preload critical chunks
+            showLoadingStats={false}
+            preloadChunks={['home']} // Preload home chunk
           >
             <LazyRouteManager
               routes={[
@@ -234,7 +162,7 @@ const AppRouter: React.FC = () => {
               fallback={<PageLoader message="Carregando página..." />}
               onRouteLoad={handleRouteLoad}
               onRouteError={handleRouteError}
-              showLoadingIndicator={process.env.NODE_ENV === 'development'}
+              showLoadingIndicator={false} // Always disabled to prevent architecture exposure
               preloadStrategy="hover" // Preload routes on hover
             />
           </CodeSplittingManager>

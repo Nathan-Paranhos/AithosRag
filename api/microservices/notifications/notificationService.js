@@ -14,8 +14,8 @@ class NotificationService extends EventEmitter {
     super();
     
     this.options = {
-      port: options.port || 3006,
-      wsPort: options.wsPort || 3008,
+      port: options.port || 3005,
+      wsPort: options.wsPort || 3009,
       jwtSecret: options.jwtSecret || 'your-super-secret-jwt-key-change-in-production',
       rateLimitWindow: options.rateLimitWindow || 15 * 60 * 1000, // 15 minutes
       rateLimitMax: options.rateLimitMax || 100,

@@ -1,6 +1,6 @@
-import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react';
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import { Loader2, Route as RouteIcon, AlertTriangle, Clock } from 'lucide-react';
+import React, { Suspense, useState, useEffect, useCallback } from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
+import { Loader2, Route as RouteIcon, AlertTriangle } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { createLazyComponent } from './CodeSplittingManager';
 
@@ -177,7 +177,7 @@ class RouteErrorBoundary extends React.Component<
   },
   { hasError: boolean; error?: Error }
 > {
-  constructor(props: any) {
+  constructor(props: { children: React.ReactNode; routePath?: string; onError?: (error: Error) => void; }) {
     super(props);
     this.state = { hasError: false };
   }
@@ -348,7 +348,6 @@ export const LazyRouteManager: React.FC<LazyRouteManagerProps> = ({
   className
 }) => {
   const location = useLocation();
-  const navigate = useNavigate();
   const routeManager = RouteManager.getInstance();
   const [routeStats, setRouteStats] = useState<Map<string, RouteStats>>(new Map());
 
@@ -401,16 +400,7 @@ export const LazyRouteManager: React.FC<LazyRouteManagerProps> = ({
     }
   }, [routes, preloadStrategy]);
 
-  // Handle route hover for preloading
-  const handleRouteHover = useCallback((path: string) => {
-    if (preloadStrategy === 'hover') {
-      const route = routes.find(r => r.path === path);
-      if (route && !routeStats.get(path)?.preloaded) {
-        route.component.preload?.();
-        routeManager.markRoutePreloaded(path);
-      }
-    }
-  }, [routes, preloadStrategy, routeStats]);
+
 
   // Create route elements
   const routeElements = routes.map((route) => {

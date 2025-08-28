@@ -3,8 +3,8 @@
  * Implementação completa de IA no frontend com funcionalidades avançadas
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { intelligentCache, advancedDebounce, performanceMonitor } from '../utils/performanceOptimizations';
+import { useState, useCallback, useRef } from 'react';
+import { intelligentCache, performanceMonitor } from '../utils/performanceOptimizations';
 
 // ===== INTERFACES =====
 interface AIMessage {
@@ -244,25 +244,25 @@ export const useAIIntegration = () => {
   const responseGenerator = useRef(new PreloadedResponseGenerator());
 
   // Debounced functions
-  const debouncedAnalyzeSentiment = useCallback(
-    advancedDebounce.debounce((text: string) => {
+  const debouncedAnalyzeSentiment = useCallback((text: string) => {
+    const timeoutId = setTimeout(() => {
       const analysis = sentimentAnalyzer.current.analyze(text);
       setCurrentSentiment(analysis);
-    }, 300, 'sentiment'),
-    []
-  );
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, []);
 
-  const debouncedAutoComplete = useCallback(
-    advancedDebounce.debounce((input: string) => {
+  const debouncedAutoComplete = useCallback((input: string) => {
+    const timeoutId = setTimeout(() => {
       if (input.length > 2) {
         const suggestions = autoCompleteEngine.current.getSuggestions(input, context);
         setAutoComplete(suggestions);
       } else {
         setAutoComplete(null);
       }
-    }, 200, 'autocomplete'),
-    [context]
-  );
+    }, 200);
+    return () => clearTimeout(timeoutId);
+  }, [context]);
 
   // Função para adicionar mensagem
   const addMessage = useCallback((content: string, role: 'user' | 'assistant') => {

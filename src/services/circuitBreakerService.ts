@@ -55,7 +55,7 @@ class CircuitBreaker {
   private nextAttempt = 0;
   private stateChanges = 0;
   private responseTimes: number[] = [];
-  private callHistory: CallResult<any>[] = [];
+  private callHistory: CallResult<unknown>[] = [];
   private downtimeStart = 0;
   private downtimeTotal = 0;
   private createdAt = Date.now();
@@ -264,7 +264,7 @@ class CircuitBreaker {
   }
 
   // Record call result
-  private recordCall(result: CallResult<any>): void {
+  private recordCall(result: CallResult<unknown>): void {
     this.callHistory.push(result);
     
     // Keep only recent calls
@@ -370,7 +370,7 @@ class CircuitBreaker {
   }
 
   // Get call history
-  getCallHistory(limit = 100): CallResult<any>[] {
+  getCallHistory(limit = 100): CallResult<unknown>[] {
     return this.callHistory.slice(-limit);
   }
 
@@ -488,13 +488,13 @@ class CircuitBreakerManager {
       name: string;
       stats: CircuitBreakerStats;
       config: CircuitBreakerConfig;
-      recentCalls: CallResult<any>[];
+      recentCalls: CallResult<unknown>[];
     }>;
   } {
     const breakers = Array.from(this.breakers.entries()).map(([name, breaker]) => ({
       name,
       stats: breaker.getStats(),
-      config: (breaker as any).config,
+      config: (breaker as CircuitBreaker & { config: CircuitBreakerConfig }).config,
       recentCalls: breaker.getCallHistory(10)
     }));
     

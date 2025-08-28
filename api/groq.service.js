@@ -290,20 +290,55 @@ class GroqService {
         attempts++;
         selectedModel = null; // Força seleção de outro modelo
         
+        // Tratamento específico para diferentes tipos de erro
+        const errorCode = error.status || error.code || 500;
+        const isServiceUnavailable = errorCode === 503 || error.message?.includes('Service Unavailable');
+        const isRateLimit = errorCode === 429 || error.message?.includes('rate limit');
+        const isServerError = errorCode >= 500;
+        
         if (attempts >= maxAttempts) {
+          // Mensagem de erro mais amigável baseada no tipo
+          let userMessage = error.message;
+          if (isServiceUnavailable) {
+            userMessage = 'O serviço de IA está temporariamente indisponível. Tente novamente em alguns minutos.';
+          } else if (isRateLimit) {
+            userMessage = 'Muitas requisições foram feitas. Aguarde um momento antes de tentar novamente.';
+          } else if (isServerError) {
+            userMessage = 'Erro interno do servidor de IA. Nossa equipe foi notificada.';
+          }
+          
+          // Se o erro principal é 503 (Service Unavailable), usa fallback offline
+          if (isServiceUnavailable) {
+            console.log('🔄 Usando fallback offline devido à indisponibilidade do serviço');
+            const fallbackResponse = this.getOfflineFallback(messages, options);
+            return fallbackResponse;
+          }
+          
           return {
             success: false,
             error: {
-              message: error.message,
+              message: userMessage,
+              originalMessage: error.message,
               type: error.type || 'groq_error',
-              code: error.status || 500,
-              attempts
+              code: errorCode,
+              attempts,
+              isServiceUnavailable,
+              isRateLimit,
+              isServerError
             }
           };
         }
         
-        // Aguardar antes da próxima tentativa
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+        // Tempo de espera progressivo baseado no tipo de erro
+        let waitTime = 1000 * attempts;
+        if (isServiceUnavailable) {
+          waitTime = Math.min(5000 * attempts, 30000); // Até 30s para 503
+        } else if (isRateLimit) {
+          waitTime = Math.min(2000 * attempts, 10000); // Até 10s para rate limit
+        }
+        
+        console.log(`Aguardando ${waitTime}ms antes da próxima tentativa...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
       }
     }
   }
@@ -335,6 +370,124 @@ class GroqService {
       this.metrics.usage[model].totalTokens += usage.total_tokens || 0;
       this.metrics.usage[model].requests++;
     }
+  }
+
+  /**
+   * Cria um stream simulado para fallback offline
+   * @param {Object} fallbackResponse - Resposta de fallback
+   * @returns {AsyncIterable} - Stream simulado
+   */
+  async* createMockStream(fallbackResponse) {
+    const content = fallbackResponse.choices[0].message.content;
+    const words = content.split(' ');
+    
+    // Simula streaming palavra por palavra
+    for (let i = 0; i < words.length; i++) {
+      const chunk = {
+        id: `chatcmpl-offline-${Date.now()}`,
+        object: 'chat.completion.chunk',
+        created: Math.floor(Date.now() / 1000),
+        model: 'offline-fallback',
+        choices: [{
+          index: 0,
+          delta: {
+            content: (i === 0 ? '' : ' ') + words[i]
+          },
+          finish_reason: null
+        }]
+      };
+      
+      yield chunk;
+      
+      // Pequena pausa para simular streaming real
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    
+    // Chunk final
+    yield {
+      id: `chatcmpl-offline-${Date.now()}`,
+      object: 'chat.completion.chunk',
+      created: Math.floor(Date.now() / 1000),
+      model: 'offline-fallback',
+      choices: [{
+        index: 0,
+        delta: {},
+        finish_reason: 'stop'
+      }]
+    };
+  }
+
+  /**
+   * Fallback offline quando a API está indisponível
+   * @param {Array} messages - Mensagens do usuário
+   * @param {Object} options - Opções
+   * @returns {Object} - Resposta de fallback
+   */
+  getOfflineFallback(messages, options = {}) {
+    const lastMessage = messages[messages.length - 1];
+    const userContent = lastMessage?.content || '';
+    
+    // Respostas pré-definidas baseadas em palavras-chave
+    const fallbackResponses = {
+      greeting: [
+        'Olá! Sou o assistente Aithos RAG. No momento estou operando em modo offline limitado.',
+        'Oi! Estou aqui para ajudar, mas com funcionalidades reduzidas devido à indisponibilidade temporária do serviço.'
+      ],
+      help: [
+        'Posso ajudar com informações básicas sobre o Aithos RAG. Nossa IA completa estará disponível em breve.',
+        'Estou aqui para ajudar! Embora em modo limitado, posso fornecer informações gerais sobre nossos serviços.'
+      ],
+      default: [
+        'Desculpe, estou com funcionalidades limitadas no momento. Tente novamente em alguns minutos para uma resposta completa da IA.',
+        'No momento estou operando em modo offline. Para uma experiência completa, tente novamente em breve.',
+        'Serviço temporariamente indisponível. Nossa equipe está trabalhando para restaurar a funcionalidade completa.'
+      ]
+    };
+    
+    let responseType = 'default';
+    const lowerContent = userContent.toLowerCase();
+    
+    if (lowerContent.includes('olá') || lowerContent.includes('oi') || lowerContent.includes('hello')) {
+      responseType = 'greeting';
+    } else if (lowerContent.includes('ajuda') || lowerContent.includes('help') || lowerContent.includes('como')) {
+      responseType = 'help';
+    }
+    
+    const responses = fallbackResponses[responseType];
+    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+    
+    return {
+      success: true,
+      isOfflineFallback: true,
+      data: {
+        choices: [{
+          message: {
+            role: 'assistant',
+            content: randomResponse
+          },
+          finish_reason: 'stop'
+        }],
+        usage: {
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0
+        },
+        model: 'offline-fallback'
+      },
+      usage: {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0
+      },
+      model: 'offline-fallback',
+      modelConfig: {
+        name: 'Fallback Offline',
+        description: 'Resposta de emergência quando o serviço está indisponível'
+      },
+      responseTime: 0,
+      fromCache: false,
+      attempts: 1
+    };
   }
 
   /**
@@ -416,22 +569,124 @@ class GroqService {
         attempts++;
         selectedModel = null; // Força seleção de outro modelo
         
+        // Tratamento específico para diferentes tipos de erro
+        const errorCode = error.status || error.code || 500;
+        const isServiceUnavailable = errorCode === 503 || error.message?.includes('Service Unavailable');
+        const isRateLimit = errorCode === 429 || error.message?.includes('rate limit');
+        const isServerError = errorCode >= 500;
+        
         if (attempts >= maxAttempts) {
+          // Mensagem de erro mais amigável baseada no tipo
+          let userMessage = error.message;
+          if (isServiceUnavailable) {
+            userMessage = 'O serviço de IA está temporariamente indisponível. Tente novamente em alguns minutos.';
+          } else if (isRateLimit) {
+            userMessage = 'Muitas requisições foram feitas. Aguarde um momento antes de tentar novamente.';
+          } else if (isServerError) {
+            userMessage = 'Erro interno do servidor de IA. Nossa equipe foi notificada.';
+          }
+          
+          // Se o erro principal é 503 (Service Unavailable), usa fallback offline
+          if (isServiceUnavailable) {
+            console.log('🔄 Usando fallback offline para stream devido à indisponibilidade do serviço');
+            const fallbackResponse = this.getOfflineFallback(messages, options);
+            // Para streaming, criamos um stream simulado
+            const mockStream = this.createMockStream(fallbackResponse);
+            return {
+              success: true,
+              stream: mockStream,
+              model: 'offline-fallback',
+              modelConfig: { name: 'Fallback Offline' },
+              attempts: attempts + 1,
+              isOfflineFallback: true
+            };
+          }
+          
           return {
             success: false,
             error: {
-              message: error.message,
+              message: userMessage,
+              originalMessage: error.message,
               type: error.type || 'groq_stream_error',
-              code: error.status || 500,
-              attempts
+              code: errorCode,
+              attempts,
+              isServiceUnavailable,
+              isRateLimit,
+              isServerError
             }
           };
         }
         
-        // Aguardar antes da próxima tentativa
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+        // Tempo de espera progressivo baseado no tipo de erro
+        let waitTime = 1000 * attempts;
+        if (isServiceUnavailable) {
+          waitTime = Math.min(5000 * attempts, 30000); // Até 30s para 503
+        } else if (isRateLimit) {
+          waitTime = Math.min(2000 * attempts, 10000); // Até 10s para rate limit
+        }
+        
+        console.log(`Aguardando ${waitTime}ms antes da próxima tentativa...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
       }
     }
+  }
+
+  /**
+   * Fallback offline quando a API está indisponível
+   * @param {Array} messages - Mensagens do usuário
+   * @param {Object} options - Opções
+   * @returns {Object} - Resposta de fallback
+   */
+  getOfflineFallback(messages, options = {}) {
+    const lastMessage = messages[messages.length - 1];
+    const userContent = lastMessage?.content || '';
+    
+    // Respostas pré-definidas baseadas em palavras-chave
+    const fallbackResponses = {
+      greeting: [
+        'Olá! Sou o assistente Aithos RAG. No momento estou operando em modo offline limitado.',
+        'Oi! Estou aqui para ajudar, mas com funcionalidades reduzidas devido à indisponibilidade temporária do serviço.'
+      ],
+      help: [
+        'Posso ajudar com informações básicas sobre o Aithos RAG. Nossa IA completa estará disponível em breve.',
+        'Estou aqui para ajudar! Embora em modo limitado, posso fornecer informações gerais sobre nossos serviços.'
+      ],
+      default: [
+        'Desculpe, estou com funcionalidades limitadas no momento. Tente novamente em alguns minutos para uma resposta completa da IA.',
+        'No momento estou operando em modo offline. Para uma experiência completa, tente novamente em breve.',
+        'Serviço temporariamente indisponível. Nossa equipe está trabalhando para restaurar a funcionalidade completa.'
+      ]
+    };
+    
+    let responseType = 'default';
+    const lowerContent = userContent.toLowerCase();
+    
+    if (lowerContent.includes('olá') || lowerContent.includes('oi') || lowerContent.includes('hello')) {
+      responseType = 'greeting';
+    } else if (lowerContent.includes('ajuda') || lowerContent.includes('help') || lowerContent.includes('como')) {
+      responseType = 'help';
+    }
+    
+    const responses = fallbackResponses[responseType];
+    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+    
+    return {
+      success: true,
+      isOfflineFallback: true,
+      choices: [{
+        message: {
+          role: 'assistant',
+          content: randomResponse
+        },
+        finish_reason: 'stop'
+      }],
+      usage: {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0
+      },
+      model: 'offline-fallback'
+    };
   }
 
   /**

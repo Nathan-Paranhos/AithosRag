@@ -13,7 +13,7 @@ export interface User {
   lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface Role {
@@ -30,14 +30,14 @@ export interface Permission {
   name: string;
   resource: string;
   action: string;
-  conditions?: Record<string, any>;
+  conditions?: Record<string, unknown>;
 }
 
 export interface Tenant {
   id: string;
   name: string;
   domain: string;
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
   isActive: boolean;
   plan: 'free' | 'pro' | 'enterprise';
   limits: {
@@ -386,7 +386,7 @@ class AuthService {
             ...options.headers,
           },
         });
-      } catch (refreshError) {
+      } catch {
         this.clearAuth();
         throw new Error('Authentication expired');
       }

@@ -3,8 +3,8 @@ import { BrowserRouter as Router, useLocation, useNavigate } from 'react-router-
 import { Toaster } from 'sonner';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ThemeToggle } from './components/ui/ThemeToggle';
-import { usePWA } from './hooks/usePWA';
-import { useGestures } from './hooks/useGestures';
+import usePWA from './hooks/usePWA';
+// import { useGestures } from './hooks/useGestures';
 import MobileNavigation from './components/MobileNavigation';
 import PushNotifications from './components/PushNotifications';
 import PullToRefresh from './components/PullToRefresh';
@@ -50,20 +50,20 @@ const AppContent: React.FC = () => {
     initPWA();
   }, [isMobile, pwaHook]);
 
-  // Global gesture handlers
-  const { ref: appRef } = useGestures({
-    onSwipeLeft: () => {
-      // Navigate to next page or show side menu
-      console.log('Global swipe left detected');
-    },
-    onSwipeRight: () => {
-      // Navigate to previous page or go back
-      if (window.history.length > 1) {
-        navigate(-1);
-      }
-    },
-    enabled: isMobile
-  });
+  // Global gesture handlers (temporarily disabled to fix hook error)
+  // const gestureHandlers = useGestures({
+  //   onSwipeLeft: () => {
+  //     // Navigate to next page or show side menu
+  //     console.log('Global swipe left detected');
+  //   },
+  //   onSwipeRight: () => {
+  //     // Navigate to previous page or go back
+  //     if (window.history.length > 1) {
+  //       navigate(-1);
+  //     }
+  //   },
+  //   enabled: isMobile
+  // });
 
   // Handle pull-to-refresh
   const handleRefresh = async () => {
@@ -98,7 +98,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div ref={appRef} className="relative min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="relative min-h-screen bg-white dark:bg-gray-900">
       {/* PWA Install Banner */}
       {canInstall && !isInstalled && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-blue-600 text-white p-3 text-center">
@@ -129,9 +129,6 @@ const AppContent: React.FC = () => {
       <header className="fixed top-0 left-0 right-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-b border-gray-200/50 dark:border-gray-700/50">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              Aithos RAG
-            </h1>
             {isInstalled && (
               <span className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs px-2 py-1 rounded-full">
                 PWA

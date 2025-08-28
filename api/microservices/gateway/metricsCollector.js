@@ -65,36 +65,43 @@ export class MetricsCollector {
   /**
    * Middleware para coletar métricas de requisições
    */
-  collectRequestMetrics = (req, res, next) => {
-    const startTime = Date.now();
-    const originalSend = res.send;
+  getRequestMetricsMiddleware() {
+    return (req, res, next) => {
+      const startTime = Date.now();
+      const originalSend = res.send;
+      const self = this;
 
-    // Intercepta a resposta
-    res.send = function(data) {
-      const endTime = Date.now();
-      const responseTime = endTime - startTime;
-      const statusCode = res.statusCode;
-      const method = req.method;
-      const path = req.path || req.url;
-      const service = req.headers['x-service-name'] || 'unknown';
+      // Intercepta a resposta
+      res.send = function(data) {
+        const endTime = Date.now();
+        const responseTime = endTime - startTime;
+        const statusCode = res.statusCode;
+        const method = req.method;
+        const path = req.path || req.url;
+        const service = req.headers['x-service-name'] || 'unknown';
 
-      // Coleta métricas da requisição
-      this.recordRequest({
-        method,
-        path,
-        service,
-        statusCode,
-        responseTime,
-        timestamp: endTime,
-        userAgent: req.headers['user-agent'],
-        ip: req.ip || req.connection.remoteAddress
-      });
+        // Coleta métricas da requisição
+        try {
+          self.recordRequest({
+            method,
+            path,
+            service,
+            statusCode,
+            responseTime,
+            timestamp: endTime,
+            userAgent: req.headers['user-agent'],
+            ip: req.ip || req.connection.remoteAddress
+          });
+        } catch (error) {
+          console.error('Error recording request metrics:', error);
+        }
 
-      return originalSend.call(this, data);
-    }.bind(this);
+        return originalSend.call(res, data);
+      };
 
-    next();
-  };
+      next();
+    };
+  }
 
   /**
    * Registra uma requisição

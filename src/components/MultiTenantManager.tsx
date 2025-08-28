@@ -2,7 +2,7 @@
 // Tenant management, isolation, resource allocation, billing
 
 import React, { useState, useEffect } from 'react';
-import { Building2, Users, Settings, DollarSign, Database, Shield, Activity, Globe, Zap, AlertTriangle, CheckCircle, Clock, TrendingUp, TrendingDown, RefreshCw, Download, Search, Filter, Plus, Edit, Trash2, Eye, BarChart3 } from 'lucide-react';
+import { Building2, DollarSign, AlertTriangle, CheckCircle, TrendingUp, TrendingDown, Search } from 'lucide-react';
 import { useAuth } from '../services/jwtAuthService';
 
 interface Tenant {
@@ -259,9 +259,9 @@ const MultiTenantManager: React.FC = () => {
         customDomain: true
       }
     }
-  ]);
+  ];
   
-  const [alerts] = useState<TenantAlert[]>([
+  const alerts: TenantAlert[] = [
     {
       id: '1',
       tenantId: '1',
@@ -297,7 +297,7 @@ const MultiTenantManager: React.FC = () => {
     }
   ]);
   
-  const [resourceUsage] = useState<ResourceUsage[]>([
+  const resourceUsage: ResourceUsage[] = [
     {
       tenantId: '1',
       tenantName: 'Acme Corporation',

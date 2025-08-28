@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
-import { colors, spacing, borderRadius, boxShadow, animation } from '../../design/tokens';
+// import { colors, spacing, borderRadius, boxShadow, animation } from '../../design/tokens';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link' | 'gradient';
@@ -46,7 +46,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:border-gray-500
       `,
       secondary: `
-        bg-gray-100 text-gray-900 hover:bg-gray-200 active:bg-gray-300
+        bg-gray-100 text-white hover:bg-gray-200 active:bg-gray-300
         focus-visible:ring-gray-500 dark:bg-gray-800 dark:text-gray-100
         dark:hover:bg-gray-700 dark:active:bg-gray-600
       `,

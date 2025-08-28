@@ -213,14 +213,14 @@ export const useAuth = (): AuthContextType => {
 
 // JWT Authentication System Component
 const JWTAuthSystem: React.FC = () => {
-  const { user, isAuthenticated, login, register, logout, hasPermission, hasRole } = useAuth();
+  const { user, isAuthenticated, login, register, logout, hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState<'login' | 'register' | 'profile' | 'security'>('login');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [twoFactorRequired, setTwoFactorRequired] = useState(false);
+  const [twoFactorRequired] = useState(false);
   
   const [loginForm, setLoginForm] = useState<LoginFormData>({
     email: '',
@@ -283,8 +283,8 @@ const JWTAuthSystem: React.FC = () => {
         tenantId: loginForm.tenantId || undefined
       });
       setSuccess('Login realizado com sucesso!');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro no login');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Erro no login');
     } finally {
       setLoading(false);
     }
@@ -317,8 +317,8 @@ const JWTAuthSystem: React.FC = () => {
         inviteCode: registerForm.inviteCode || undefined
       });
       setSuccess('Conta criada com sucesso!');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro no registro');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Erro no registro');
     } finally {
       setLoading(false);
     }
@@ -328,7 +328,7 @@ const JWTAuthSystem: React.FC = () => {
     try {
       await logout();
       setSuccess('Logout realizado com sucesso!');
-    } catch (err) {
+    } catch {
       setError('Erro no logout');
     }
   };
@@ -369,7 +369,7 @@ const JWTAuthSystem: React.FC = () => {
                   <User className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">{user.name}</h1>
+                  <h1 className="text-2xl font-bold text-white">{user.name}</h1>
                   <p className="text-gray-600">{user.email}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Crown className="w-4 h-4 text-yellow-500" />
@@ -426,21 +426,21 @@ const JWTAuthSystem: React.FC = () => {
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-gray-900">Informações Pessoais</h3>
+                      <h3 className="text-lg font-semibold text-white">Informações Pessoais</h3>
                       <div className="space-y-3">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
-                          <div className="text-gray-900">{user.name}</div>
+                          <div className="text-white">{user.name}</div>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                          <div className="text-gray-900">{user.email}</div>
+                          <div className="text-white">{user.email}</div>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Função</label>
                           <div className="flex items-center gap-2">
                             <Crown className="w-4 h-4 text-yellow-500" />
-                            <span className="text-gray-900 capitalize">{user.role.name}</span>
+                            <span className="text-white capitalize">{user.role.name}</span>
                           </div>
                         </div>
                         <div>
@@ -454,7 +454,7 @@ const JWTAuthSystem: React.FC = () => {
                     </div>
 
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-gray-900">Permissões</h3>
+                      <h3 className="text-lg font-semibold text-white">Permissões</h3>
                       <div className="space-y-2">
                         {user.permissions.slice(0, 8).map((permission, index) => (
                           <div key={index} className="flex items-center gap-2 text-sm">
@@ -476,7 +476,7 @@ const JWTAuthSystem: React.FC = () => {
               {activeTab === 'security' && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Eventos de Segurança Recentes</h3>
+                    <h3 className="text-lg font-semibold text-white mb-4">Eventos de Segurança Recentes</h3>
                     <div className="space-y-3">
                       {securityEvents.map(event => (
                         <div key={event.id} className={`p-4 rounded-lg border ${getEventColor(event.type)}`}>
@@ -484,7 +484,7 @@ const JWTAuthSystem: React.FC = () => {
                             {getEventIcon(event.type)}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium text-gray-900 capitalize">
+                                <span className="font-medium text-white capitalize">
                                   {event.type.replace('_', ' ')}
                                 </span>
                                 <span className="text-sm text-gray-500">

@@ -1,6 +1,8 @@
 // Rate Limiting Service - Enterprise API Usage Control
 // Professional rate limiting with multiple algorithms and monitoring
 
+import type { Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from 'express';
+
 // Types
 type RateLimitAlgorithm = 'token_bucket' | 'sliding_window' | 'fixed_window' | 'leaky_bucket';
 type RateLimitScope = 'global' | 'user' | 'ip' | 'api_key' | 'endpoint';
@@ -57,7 +59,7 @@ interface RateLimitState {
     windowStart: number;
   };
   leakyBucket?: {
-    queue: Array<{ timestamp: number; request: any }>;
+    queue: Array<{ timestamp: number; request: RateLimitRequest }>;
     lastLeak: number;
     leakRate: number;
   };
@@ -115,7 +117,7 @@ interface RateLimitRequest {
   userRole?: string;
   timestamp: number;
   headers: Record<string, string>;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 class RateLimitingService {
@@ -421,11 +423,11 @@ class RateLimitingService {
 
     switch (rule.algorithm) {
       case 'token_bucket':
-        return this.checkTokenBucket(rule, state, request);
+        return this.checkTokenBucket(rule, state);
       case 'sliding_window':
-        return this.checkSlidingWindow(rule, state, request);
+        return this.checkSlidingWindow(rule, state);
       case 'fixed_window':
-        return this.checkFixedWindow(rule, state, request);
+        return this.checkFixedWindow(rule, state);
       case 'leaky_bucket':
         return this.checkLeakyBucket(rule, state, request);
       default:
@@ -469,7 +471,7 @@ class RateLimitingService {
     return state;
   }
 
-  private checkTokenBucket(rule: RateLimitRule, state: RateLimitState, request: RateLimitRequest): RateLimitResult {
+  private checkTokenBucket(rule: RateLimitRule, state: RateLimitState): RateLimitResult {
     const bucket = state.bucket!;
     const now = Date.now();
     
@@ -511,7 +513,7 @@ class RateLimitingService {
     };
   }
 
-  private checkSlidingWindow(rule: RateLimitRule, state: RateLimitState, request: RateLimitRequest): RateLimitResult {
+  private checkSlidingWindow(rule: RateLimitRule, state: RateLimitState): RateLimitResult {
     const window = state.window!;
     const now = Date.now();
     const windowStart = now - rule.window;
@@ -562,7 +564,7 @@ class RateLimitingService {
     };
   }
 
-  private checkFixedWindow(rule: RateLimitRule, state: RateLimitState, request: RateLimitRequest): RateLimitResult {
+  private checkFixedWindow(rule: RateLimitRule, state: RateLimitState): RateLimitResult {
     const fixedWindow = state.fixedWindow!;
     const now = Date.now();
     
@@ -849,7 +851,7 @@ const rateLimitingService = new RateLimitingService();
 
 // Utility functions
 export const createRateLimitMiddleware = (service: RateLimitingService = rateLimitingService) => {
-  return (req: any, res: any, next: any) => {
+  return (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
     const request: RateLimitRequest = {
       id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       userId: req.user?.id,

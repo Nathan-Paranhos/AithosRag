@@ -2,7 +2,7 @@
 // Speech recognition, text-to-speech, voice commands, multilingual support
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MicOff, Volume2, VolumeX, Play, Pause, Square, Settings, Languages, Zap, Activity, AlertCircle, CheckCircle, Clock, RotateCcw } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, Play, Settings, Languages, Zap, Activity, AlertCircle, CheckCircle, Clock, RotateCcw } from 'lucide-react';
 
 interface VoiceCommand {
   id: string;
@@ -65,9 +65,6 @@ const VoiceInterface: React.FC = () => {
   
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
   
   const [settings, setSettings] = useState<VoiceSettings>({
     language: 'en-US',
@@ -299,27 +296,29 @@ const VoiceInterface: React.FC = () => {
       const match = lowerTranscript.match(regex);
       
       if (match) {
-        executeVoiceCommand(command, match.slice(1), confidence);
+        executeVoiceCommand(command, match.slice(1));
         break;
       }
     }
   }, [commands, settings.confidenceThreshold]);
   
   // Execute voice command
-  const executeVoiceCommand = (command: VoiceCommand, params: string[], confidence: number) => {
+  const executeVoiceCommand = (command: VoiceCommand, params: string[]) => {
     console.log(`Executing command: ${command.action}`, params);
     
     switch (command.action) {
-      case 'navigate:/dashboard':
+      case 'navigate:/dashboard': {
         // Navigate to dashboard
         speak('Opening dashboard');
         break;
+      }
       case 'record:start':
         startListening();
         break;
-      case 'record:stop':
-        stopListening();
+      case 'record:stop': {
+        speak('Recording stopped');
         break;
+      }
       case 'search:query':
         if (params[0]) {
           speak(`Searching for ${params[0]}`);
@@ -334,10 +333,11 @@ const VoiceInterface: React.FC = () => {
         speak('Document saved');
         // Save document
         break;
-      case 'query:time':
+      case 'query:time': {
         const now = new Date();
         speak(`The current time is ${now.toLocaleTimeString()}`);
         break;
+      }
       case 'theme:dark':
         speak('Switching to dark mode');
         // Switch theme
@@ -386,7 +386,7 @@ const VoiceInterface: React.FC = () => {
     
     try {
       recognitionRef.current.start();
-    } catch (error) {
+    } catch {
       setError('Failed to start speech recognition');
     }
   };
@@ -511,7 +511,7 @@ const VoiceInterface: React.FC = () => {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as 'interface' | 'commands' | 'sessions' | 'settings')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeTab === tab.id
                   ? 'bg-white/20 text-white shadow-lg'

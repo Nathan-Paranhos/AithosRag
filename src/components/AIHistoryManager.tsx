@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Download, Upload, Trash2, Star, Clock, Filter, Tag, Share2, Archive } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
-import { SearchInput } from './ui/Input';
 import { cn } from '../utils/cn';
 
 // Interfaces

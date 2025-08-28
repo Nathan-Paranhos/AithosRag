@@ -204,47 +204,78 @@ class HealthMonitor extends EventEmitter {
   }
 
   getSystemHealth() {
-    const metrics = this.systemMetrics;
-    const issues = [];
-    let status = 'healthy';
+    try {
+      const metrics = this.systemMetrics;
+      const issues = [];
+      let status = 'healthy';
 
-    // Check memory usage
-    if (metrics.memory.percentage > this.options.memoryThreshold) {
-      issues.push(`High memory usage: ${Math.round(metrics.memory.percentage * 100)}%`);
-      status = 'degraded';
-    }
+      // Validate metrics exist
+      if (!metrics || !metrics.memory || !metrics.cpu) {
+        return {
+          status: 'unknown',
+          issues: ['System metrics not available'],
+          metrics: {
+            cpu: { usage: 0, loadAverage: [0, 0, 0] },
+            memory: { used: 0, total: 0, percentage: 0 },
+            uptime: 0,
+            timestamp: new Date().toISOString()
+          }
+        };
+      }
 
-    // Check CPU usage
-    if (metrics.cpu.usage > this.options.cpuThreshold) {
-      issues.push(`High CPU usage: ${Math.round(metrics.cpu.usage * 100)}%`);
-      status = 'degraded';
-    }
-
-    // Check disk usage
-    if (metrics.disk.percentage > this.options.diskThreshold) {
-      issues.push(`High disk usage: ${Math.round(metrics.disk.percentage * 100)}%`);
-      if (status !== 'critical') {
+      // Check memory usage with safe defaults
+      const memoryPercentage = metrics.memory.percentage || 0;
+      if (memoryPercentage > this.options.memoryThreshold) {
+        issues.push(`High memory usage: ${Math.round(memoryPercentage * 100)}%`);
         status = 'degraded';
       }
-    }
 
-    return {
-      status,
-      issues,
-      metrics: {
-        cpu: {
-          usage: Math.round(metrics.cpu.usage * 100),
-          loadAverage: metrics.cpu.loadAverage
-        },
-        memory: {
-          used: Math.round(metrics.memory.used / 1024 / 1024), // MB
-          total: Math.round(metrics.memory.total / 1024 / 1024), // MB
-          percentage: Math.round(metrics.memory.percentage * 100)
-        },
-        uptime: Math.round(metrics.uptime),
-        timestamp: new Date(metrics.timestamp).toISOString()
+      // Check CPU usage with safe defaults
+      const cpuUsage = metrics.cpu.usage || 0;
+      if (cpuUsage > this.options.cpuThreshold) {
+        issues.push(`High CPU usage: ${Math.round(cpuUsage * 100)}%`);
+        status = 'degraded';
       }
-    };
+
+      // Check disk usage with safe defaults
+      const diskPercentage = metrics.disk?.percentage || 0;
+      if (diskPercentage > this.options.diskThreshold) {
+        issues.push(`High disk usage: ${Math.round(diskPercentage * 100)}%`);
+        if (status !== 'critical') {
+          status = 'degraded';
+        }
+      }
+
+      return {
+        status,
+        issues,
+        metrics: {
+          cpu: {
+            usage: Math.round((cpuUsage || 0) * 100),
+            loadAverage: metrics.cpu.loadAverage || [0, 0, 0]
+          },
+          memory: {
+            used: Math.round((metrics.memory.used || 0) / 1024 / 1024), // MB
+            total: Math.round((metrics.memory.total || 0) / 1024 / 1024), // MB
+            percentage: Math.round((memoryPercentage || 0) * 100)
+          },
+          uptime: Math.round(metrics.uptime || 0),
+          timestamp: new Date(metrics.timestamp || Date.now()).toISOString()
+        }
+      };
+    } catch (error) {
+      console.error('Error in getSystemHealth:', error);
+      return {
+        status: 'error',
+        issues: ['System health check failed'],
+        metrics: {
+          cpu: { usage: 0, loadAverage: [0, 0, 0] },
+          memory: { used: 0, total: 0, percentage: 0 },
+          uptime: 0,
+          timestamp: new Date().toISOString()
+        }
+      };
+    }
   }
 
   calculateHealthScore(service) {
@@ -272,49 +303,91 @@ class HealthMonitor extends EventEmitter {
   }
 
   updateSystemMetrics() {
-    const now = Date.now();
-    
-    // CPU metrics
-    const cpus = os.cpus();
-    let totalIdle = 0;
-    let totalTick = 0;
-    
-    cpus.forEach(cpu => {
-      for (const type in cpu.times) {
-        totalTick += cpu.times[type];
+    try {
+      const now = Date.now();
+      
+      // CPU metrics with error handling
+      let cpuUsage = 0;
+      try {
+        const cpus = os.cpus();
+        if (cpus && cpus.length > 0) {
+          let totalIdle = 0;
+          let totalTick = 0;
+          
+          cpus.forEach(cpu => {
+            if (cpu && cpu.times) {
+              for (const type in cpu.times) {
+                totalTick += cpu.times[type] || 0;
+              }
+              totalIdle += cpu.times.idle || 0;
+            }
+          });
+          
+          if (cpus.length > 0 && totalTick > 0) {
+            const idle = totalIdle / cpus.length;
+            const total = totalTick / cpus.length;
+            cpuUsage = total > 0 ? Math.max(0, Math.min(1, 1 - (idle / total))) : 0;
+          }
+        }
+      } catch (cpuError) {
+        console.warn('Error calculating CPU usage:', cpuError.message);
+        cpuUsage = 0;
       }
-      totalIdle += cpu.times.idle;
-    });
-    
-    const idle = totalIdle / cpus.length;
-    const total = totalTick / cpus.length;
-    const usage = 1 - (idle / total);
 
-    // Memory metrics
-    const totalMem = os.totalmem();
-    const freeMem = os.freemem();
-    const usedMem = totalMem - freeMem;
-    
-    // Update metrics
-    this.systemMetrics = {
-      cpu: {
-        usage: isNaN(usage) ? 0 : usage,
-        loadAverage: os.loadavg()
-      },
-      memory: {
-        used: usedMem,
-        total: totalMem,
-        percentage: usedMem / totalMem
-      },
-      disk: {
-        // Note: Disk usage would require additional libraries like 'diskusage'
-        used: 0,
-        total: 0,
-        percentage: 0
-      },
-      uptime: process.uptime(),
-      timestamp: now
-    };
+      // Memory metrics with error handling
+      let memoryMetrics = { used: 0, total: 0, percentage: 0 };
+      try {
+        const totalMem = os.totalmem() || 0;
+        const freeMem = os.freemem() || 0;
+        const usedMem = Math.max(0, totalMem - freeMem);
+        
+        memoryMetrics = {
+          used: usedMem,
+          total: totalMem,
+          percentage: totalMem > 0 ? Math.max(0, Math.min(1, usedMem / totalMem)) : 0
+        };
+      } catch (memError) {
+        console.warn('Error calculating memory usage:', memError.message);
+      }
+      
+      // Load average with error handling
+      let loadAverage = [0, 0, 0];
+      try {
+        const loadAvg = os.loadavg();
+        if (Array.isArray(loadAvg) && loadAvg.length >= 3) {
+          loadAverage = loadAvg.map(val => isNaN(val) ? 0 : Math.max(0, val));
+        }
+      } catch (loadError) {
+        console.warn('Error getting load average:', loadError.message);
+      }
+      
+      // Update metrics with safe values
+      this.systemMetrics = {
+        cpu: {
+          usage: isNaN(cpuUsage) ? 0 : cpuUsage,
+          loadAverage: loadAverage
+        },
+        memory: memoryMetrics,
+        disk: {
+          // Note: Disk usage would require additional libraries like 'diskusage'
+          used: 0,
+          total: 0,
+          percentage: 0
+        },
+        uptime: Math.max(0, process.uptime() || 0),
+        timestamp: now
+      };
+    } catch (error) {
+      console.error('Error updating system metrics:', error);
+      // Fallback to safe default values
+      this.systemMetrics = {
+        cpu: { usage: 0, loadAverage: [0, 0, 0] },
+        memory: { used: 0, total: 0, percentage: 0 },
+        disk: { used: 0, total: 0, percentage: 0 },
+        uptime: 0,
+        timestamp: Date.now()
+      };
+    }
   }
 
   startMonitoring() {
@@ -339,6 +412,16 @@ class HealthMonitor extends EventEmitter {
   }
 
   async checkAllServices() {
+    const promises = [];
+    
+    // Check each registered service
+    for (const [serviceName, service] of this.services) {
+      promises.push(this.checkServiceHealth(serviceName, service));
+    }
+    
+    // Wait for all health checks to complete
+    await Promise.allSettled(promises);
+    
     const overallHealth = this.getOverallHealth();
     
     // Store health history
@@ -357,6 +440,51 @@ class HealthMonitor extends EventEmitter {
     this.emit('healthCheckCompleted', overallHealth);
     
     return overallHealth;
+  }
+
+  async checkServiceHealth(serviceName, service) {
+    const startTime = Date.now();
+    
+    try {
+      const url = `http://${service.host}:${service.port}${service.healthEndpoint}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        timeout: 5000,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'HealthMonitor/1.0'
+        }
+      });
+      
+      const responseTime = Date.now() - startTime;
+      
+      if (response.ok) {
+        this.updateServiceHealth(serviceName, {
+          status: 'healthy',
+          responseTime,
+          lastCheck: Date.now()
+        });
+      } else {
+        this.updateServiceHealth(serviceName, {
+          status: 'unhealthy',
+          responseTime,
+          lastCheck: Date.now(),
+          error: `HTTP ${response.status}: ${response.statusText}`
+        });
+      }
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      
+      this.updateServiceHealth(serviceName, {
+        status: 'unhealthy',
+        responseTime,
+        lastCheck: Date.now(),
+        error: error.message
+      });
+      
+      console.warn(`Health check failed for ${serviceName}:`, error.message);
+    }
   }
 
   getHealthHistory(limit = 50) {

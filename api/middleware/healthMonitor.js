@@ -13,7 +13,7 @@ class HealthMonitor extends EventEmitter {
     this.options = {
       // Monitoring intervals
       healthCheckInterval: options.healthCheckInterval || 30000, // 30 seconds
-      metricsInterval: options.metricsInterval || 10000, // 10 seconds
+      metricsInterval: options.metricsInterval || 30000, // Changed from 10 seconds to 30 seconds
       
       // Thresholds
       cpuThreshold: options.cpuThreshold || 80, // 80%
@@ -29,7 +29,7 @@ class HealthMonitor extends EventEmitter {
       maxAlerts: options.maxAlerts || 10,
       
       // History retention
-      maxHistoryEntries: options.maxHistoryEntries || 1000,
+      maxHistoryEntries: options.maxHistoryEntries || 20, // Reduced from 1000 to 20
       
       // Enable detailed logging
       enableLogging: options.enableLogging !== false,
@@ -118,6 +118,25 @@ class HealthMonitor extends EventEmitter {
    * Add a service to monitor
    */
   addService(name, config) {
+    // Validate inputs
+    if (!name || typeof name !== 'string') {
+      this.log(`Invalid service name: ${name}`, 'error');
+      return;
+    }
+    
+    if (!config || !config.url || typeof config.url !== 'string') {
+      this.log(`Invalid service config for ${name}`, 'error');
+      return;
+    }
+    
+    // Test URL validity
+    try {
+      new URL(config.url);
+    } catch (urlError) {
+      this.log(`Invalid URL for ${name}: ${config.url} - ${urlError.message}`, 'error');
+      return;
+    }
+    
     const service = {
       name,
       url: config.url,
@@ -146,7 +165,7 @@ class HealthMonitor extends EventEmitter {
     };
     
     this.services.set(name, service);
-    this.log(`Added service to monitor: ${name}`);
+    this.log(`Added service to monitor: ${name} (${service.url})`);
   }
   
   /**
@@ -201,98 +220,161 @@ class HealthMonitor extends EventEmitter {
   }
   
   /**
-   * Check individual service health
+   * Check individual service health with retry logic
    */
   async checkService(service) {
-    const startTime = Date.now();
+    const maxRetries = service.maxRetries || 3;
+    const retryDelay = service.retryDelay || 1000;
+    let lastError;
     
-    try {
-      let result;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const startTime = Date.now();
       
-      if (service.healthCheck && typeof service.healthCheck === 'function') {
-        // Custom health check function
-        result = await this.executeWithTimeout(
-          service.healthCheck,
-          service.timeout
-        );
-      } else if (service.url) {
-        // HTTP health check
-        result = await this.httpHealthCheck(service);
-      } else {
-        throw new Error('No health check method configured');
+      try {
+        let result;
+        
+        if (service.healthCheck && typeof service.healthCheck === 'function') {
+          // Custom health check function
+          result = await this.executeWithTimeout(
+            service.healthCheck,
+            service.timeout
+          );
+        } else if (service.url) {
+          // HTTP health check
+          result = await this.httpHealthCheck(service);
+        } else {
+          throw new Error('No health check method configured');
+        }
+        
+        const responseTime = Date.now() - startTime;
+        
+        // Reset consecutive failures on success
+        service.consecutiveFailures = 0;
+        
+        // Update service metrics
+        service.status = 'healthy';
+        service.lastCheck = Date.now();
+        service.lastSuccess = Date.now();
+        service.responseTime = responseTime;
+        service.successCount++;
+        
+        // Add to history
+        this.addServiceHistory(service, {
+          status: 'healthy',
+          responseTime,
+          attempt,
+          timestamp: Date.now()
+        });
+        
+        // Call success callback if provided
+        if (service.onSuccess && typeof service.onSuccess === 'function') {
+          try {
+            service.onSuccess();
+          } catch (callbackError) {
+            this.log(`Success callback error for ${service.name}: ${callbackError.message}`, 'warn');
+          }
+        }
+        
+        // Check response time threshold
+        if (responseTime > this.options.responseTimeThreshold) {
+          this.createAlert('performance', `High response time for ${service.name}: ${responseTime}ms`);
+        }
+        
+        return {
+          service: service.name,
+          status: 'healthy',
+          responseTime,
+          attempt,
+          timestamp: Date.now(),
+          details: result
+        };
+        
+      } catch (error) {
+        lastError = error;
+        const responseTime = Date.now() - startTime;
+        
+        // Log attempt failure
+        this.log(`Health check attempt ${attempt}/${maxRetries} failed for ${service.name}: ${error.message}`, 'warn');
+        
+        // If not the last attempt, wait before retrying
+        if (attempt < maxRetries) {
+          await this.delay(retryDelay * attempt); // Exponential backoff
+          continue;
+        }
+        
+        // All attempts failed
+        service.consecutiveFailures = (service.consecutiveFailures || 0) + 1;
+        
+        // Update service metrics
+        service.status = 'unhealthy';
+        service.lastCheck = Date.now();
+        service.lastFailure = Date.now();
+        service.responseTime = responseTime;
+        service.failureCount++;
+        
+        // Add to history
+        this.addServiceHistory(service, {
+          status: 'unhealthy',
+          responseTime,
+          error: lastError.message,
+          attempts: maxRetries,
+          timestamp: Date.now()
+        });
+        
+        // Call failure callback if provided
+        if (service.onFailure && typeof service.onFailure === 'function') {
+          try {
+            service.onFailure(lastError);
+          } catch (callbackError) {
+            this.log(`Failure callback error for ${service.name}: ${callbackError.message}`, 'warn');
+          }
+        }
+        
+        // Create alert only after multiple consecutive failures
+        if (service.consecutiveFailures >= 3) {
+          this.createAlert('service', `Service ${service.name} is unhealthy after ${service.consecutiveFailures} consecutive failures: ${lastError.message}`);
+        }
+        
+        return {
+          service: service.name,
+          status: 'unhealthy',
+          responseTime,
+          error: lastError.message,
+          attempts: maxRetries,
+          consecutiveFailures: service.consecutiveFailures,
+          timestamp: Date.now()
+        };
       }
-      
-      const responseTime = Date.now() - startTime;
-      
-      // Update service metrics
-      service.status = 'healthy';
-      service.lastCheck = Date.now();
-      service.lastSuccess = Date.now();
-      service.responseTime = responseTime;
-      service.successCount++;
-      
-      // Add to history
-      this.addServiceHistory(service, {
-        status: 'healthy',
-        responseTime,
-        timestamp: Date.now()
-      });
-      
-      // Check response time threshold
-      if (responseTime > this.options.responseTimeThreshold) {
-        this.createAlert('performance', `High response time for ${service.name}: ${responseTime}ms`);
-      }
-      
-      return {
-        service: service.name,
-        status: 'healthy',
-        responseTime,
-        timestamp: Date.now(),
-        details: result
-      };
-      
-    } catch (error) {
-      const responseTime = Date.now() - startTime;
-      
-      // Update service metrics
-      service.status = 'unhealthy';
-      service.lastCheck = Date.now();
-      service.lastFailure = Date.now();
-      service.responseTime = responseTime;
-      service.failureCount++;
-      
-      // Add to history
-      this.addServiceHistory(service, {
-        status: 'unhealthy',
-        responseTime,
-        error: error.message,
-        timestamp: Date.now()
-      });
-      
-      // Create alert
-      this.createAlert('service', `Service ${service.name} is unhealthy: ${error.message}`);
-      
-      return {
-        service: service.name,
-        status: 'unhealthy',
-        responseTime,
-        error: error.message,
-        timestamp: Date.now()
-      };
     }
   }
   
   /**
-   * HTTP health check
+   * HTTP health check with improved error handling
    */
   async httpHealthCheck(service) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), service.timeout);
     
     try {
+      // Validate URL before making request
+      if (!service.url || typeof service.url !== 'string') {
+        throw new Error('Invalid URL provided');
+      }
+      
+      // Parse URL to validate format
+      try {
+        new URL(service.url);
+      } catch (urlError) {
+        throw new Error(`Invalid URL format: ${service.url}`);
+      }
+      
       const response = await fetch(service.url, {
         method: service.method,
-        headers: service.headers,
+        headers: {
+          'User-Agent': 'Aithos-HealthMonitor/1.0',
+          'Accept': 'application/json, text/plain, */*',
+          ...service.headers
+        },
         signal: controller.signal
       });
       
@@ -310,6 +392,16 @@ class HealthMonitor extends EventEmitter {
       
     } catch (error) {
       clearTimeout(timeoutId);
+      
+      // Provide more specific error messages
+      if (error.name === 'AbortError') {
+        throw new Error(`Request timeout after ${service.timeout}ms`);
+      } else if (error.code === 'ECONNREFUSED') {
+        throw new Error(`Connection refused to ${service.url}`);
+      } else if (error.code === 'ENOTFOUND') {
+        throw new Error(`Host not found: ${service.url}`);
+      }
+      
       throw error;
     }
   }
@@ -336,62 +428,134 @@ class HealthMonitor extends EventEmitter {
   }
   
   /**
-   * Collect system metrics
+   * Delay utility for retry logic
+   */
+  async delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  
+  /**
+   * Clear history for memory optimization
+   */
+  clearHistory() {
+    try {
+      // Clear service histories
+      for (const [name, service] of this.services) {
+        if (service.history) {
+          service.history = [];
+          service.historyIndex = 0;
+        }
+      }
+      
+      // Clear system metrics history
+      if (this.systemMetrics.cpu.history) {
+        this.systemMetrics.cpu.history = [];
+        this.systemMetrics.cpu.historyIndex = 0;
+      }
+      
+      if (this.systemMetrics.memory.history) {
+        this.systemMetrics.memory.history = [];
+        this.systemMetrics.memory.historyIndex = 0;
+      }
+      
+      // Clear health history
+      this.healthHistory = [];
+      this.healthHistoryIndex = 0;
+      
+      // Clear old alerts
+      const now = Date.now();
+      this.alerts = this.alerts.filter(alert => 
+        (now - alert.timestamp) < (24 * 60 * 60 * 1000) // Keep alerts for 24 hours
+      );
+      
+      this.log('History cleared for memory optimization');
+    } catch (error) {
+      this.log(`Error clearing history: ${error.message}`, 'error');
+    }
+  }
+  
+  /**
+   * Collect system metrics (optimized for reduced overhead)
    */
   collectSystemMetrics() {
     try {
-      // CPU usage
-      const cpus = os.cpus();
-      let totalIdle = 0;
-      let totalTick = 0;
+      // Optimized CPU usage calculation - use process.cpuUsage() when available
+      let cpuUsage = 0;
+      if (this.lastCpuUsage) {
+        const currentUsage = process.cpuUsage(this.lastCpuUsage);
+        const totalUsage = currentUsage.user + currentUsage.system;
+        const totalTime = (Date.now() - this.lastCpuTime) * 1000; // Convert to microseconds
+        cpuUsage = Math.min(100, (totalUsage / totalTime) * 100);
+      }
+      this.lastCpuUsage = process.cpuUsage();
+      this.lastCpuTime = Date.now();
       
-      cpus.forEach(cpu => {
-        for (const type in cpu.times) {
-          totalTick += cpu.times[type];
-        }
-        totalIdle += cpu.times.idle;
-      });
-      
-      const idle = totalIdle / cpus.length;
-      const total = totalTick / cpus.length;
-      const cpuUsage = 100 - ~~(100 * idle / total);
+      // Fallback to os.cpus() if process.cpuUsage() gives invalid results
+      if (isNaN(cpuUsage) || cpuUsage < 0) {
+        const cpus = os.cpus();
+        let totalIdle = 0;
+        let totalTick = 0;
+        
+        cpus.forEach(cpu => {
+          for (const type in cpu.times) {
+            totalTick += cpu.times[type];
+          }
+          totalIdle += cpu.times.idle;
+        });
+        
+        const idle = totalIdle / cpus.length;
+        const total = totalTick / cpus.length;
+        cpuUsage = 100 - ~~(100 * idle / total);
+      }
       
       this.systemMetrics.cpu.usage = cpuUsage;
       this.addMetricHistory(this.systemMetrics.cpu, cpuUsage);
       
-      // Memory usage
-      const totalMem = os.totalmem();
+      // Optimized memory usage - cache total memory
+      if (!this.cachedTotalMem) {
+        this.cachedTotalMem = os.totalmem();
+      }
       const freeMem = os.freemem();
-      const usedMem = totalMem - freeMem;
-      const memUsage = (usedMem / totalMem) * 100;
+      const usedMem = this.cachedTotalMem - freeMem;
+      const memUsage = (usedMem / this.cachedTotalMem) * 100;
       
       this.systemMetrics.memory = {
         usage: memUsage,
         free: freeMem,
-        total: totalMem,
+        total: this.cachedTotalMem,
         history: this.systemMetrics.memory.history
       };
       this.addMetricHistory(this.systemMetrics.memory, memUsage);
       
-      // System uptime
+      // System uptime (cached for performance)
       this.systemMetrics.uptime = process.uptime();
       
-      // Check thresholds and create alerts
-      if (cpuUsage > this.options.cpuThreshold) {
-        this.createAlert('system', `High CPU usage: ${cpuUsage.toFixed(2)}%`);
+      // Optimized threshold checking - only check every 3rd collection to reduce overhead
+      this.metricsCounter = (this.metricsCounter || 0) + 1;
+      if (this.metricsCounter % 3 === 0) {
+        if (cpuUsage > this.options.cpuThreshold) {
+          this.createAlert('system', `High CPU usage: ${cpuUsage.toFixed(1)}%`);
+        }
+        
+        if (memUsage > this.options.memoryThreshold) {
+          this.createAlert('system', `High memory usage: ${memUsage.toFixed(1)}%`);
+          // Force garbage collection if available
+          if (global.gc) {
+            global.gc();
+            this.log('🧹 Forced garbage collection executed', 'info');
+          }
+        }
       }
       
-      if (memUsage > this.options.memoryThreshold) {
-        this.createAlert('system', `High memory usage: ${memUsage.toFixed(2)}%`);
+      // Emit metrics event (reduced frequency)
+      if (this.metricsCounter % 2 === 0) {
+        this.emit('metrics', {
+          cpu: cpuUsage,
+          memory: memUsage,
+          uptime: this.systemMetrics.uptime,
+          timestamp: Date.now()
+        });
       }
-      
-      // Emit metrics event
-      this.emit('metrics', {
-        cpu: cpuUsage,
-        memory: memUsage,
-        uptime: this.systemMetrics.uptime,
-        timestamp: Date.now()
-      });
       
     } catch (error) {
       this.log(`Error collecting system metrics: ${error.message}`, 'error');
@@ -399,42 +563,93 @@ class HealthMonitor extends EventEmitter {
   }
   
   /**
-   * Add metric to history
+   * Memory cleanup function
+   */
+  cleanupMemory() {
+    const now = Date.now();
+    const maxAge = 5 * 60 * 1000; // 5 minutes
+    
+    // Clean up old service history
+    for (const [serviceName, service] of this.services) {
+      if (service.history && service.history.length > this.options.maxHistoryEntries) {
+        service.history = service.history.slice(-this.options.maxHistoryEntries);
+      }
+      
+      // Remove old history entries
+      if (service.history) {
+        service.history = service.history.filter(entry => 
+          now - entry.timestamp < maxAge
+        );
+      }
+    }
+    
+    // Force garbage collection if memory usage is high
+    if (this.systemMetrics.memory.usage > 85 && global.gc) {
+      global.gc();
+      this.log('🧹 Memory cleanup completed', 'info');
+    }
+  }
+  
+  /**
+   * Add metric to history (optimized)
    */
   addMetricHistory(metric, value) {
-    metric.history.push({
+    // Use circular buffer approach for better performance
+    if (!metric.historyIndex) {
+      metric.historyIndex = 0;
+    }
+    
+    // Initialize history array if needed
+    if (!metric.history) {
+      metric.history = new Array(this.options.maxHistoryEntries);
+    }
+    
+    // Add entry using circular buffer
+    metric.history[metric.historyIndex] = {
       value,
       timestamp: Date.now()
-    });
+    };
     
-    // Keep only recent history
-    if (metric.history.length > this.options.maxHistoryEntries) {
-      metric.history = metric.history.slice(-this.options.maxHistoryEntries);
-    }
+    // Update index with wrap-around
+    metric.historyIndex = (metric.historyIndex + 1) % this.options.maxHistoryEntries;
   }
   
   /**
-   * Add service history entry
+   * Add service history entry (optimized)
    */
   addServiceHistory(service, entry) {
-    service.history.push(entry);
-    
-    // Keep only recent history
-    if (service.history.length > this.options.maxHistoryEntries) {
-      service.history = service.history.slice(-this.options.maxHistoryEntries);
+    // Use circular buffer approach
+    if (!service.historyIndex) {
+      service.historyIndex = 0;
     }
+    
+    // Initialize history array if needed
+    if (!Array.isArray(service.history)) {
+      service.history = new Array(this.options.maxHistoryEntries);
+    }
+    
+    // Add entry using circular buffer
+    service.history[service.historyIndex] = entry;
+    service.historyIndex = (service.historyIndex + 1) % this.options.maxHistoryEntries;
   }
   
   /**
-   * Add health history entry
+   * Add health history entry (optimized)
    */
   addHealthHistory(entry) {
-    this.healthHistory.push(entry);
-    
-    // Keep only recent history
-    if (this.healthHistory.length > this.options.maxHistoryEntries) {
-      this.healthHistory = this.healthHistory.slice(-this.options.maxHistoryEntries);
+    // Use circular buffer approach
+    if (!this.healthHistoryIndex) {
+      this.healthHistoryIndex = 0;
     }
+    
+    // Initialize history array if needed
+    if (!Array.isArray(this.healthHistory)) {
+      this.healthHistory = new Array(this.options.maxHistoryEntries);
+    }
+    
+    // Add entry using circular buffer
+    this.healthHistory[this.healthHistoryIndex] = entry;
+    this.healthHistoryIndex = (this.healthHistoryIndex + 1) % this.options.maxHistoryEntries;
   }
   
   /**

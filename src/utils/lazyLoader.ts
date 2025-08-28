@@ -1,4 +1,4 @@
-import React, { Suspense, ComponentType } from 'react';
+import React, { ComponentType } from 'react';
 
 // Enhanced lazy loading with error boundaries and retry logic
 export interface LazyComponentOptions {
@@ -11,23 +11,12 @@ export interface LazyComponentOptions {
   chunkName?: string;
 }
 
-type ComponentLoader<T = Record<string, unknown>> = () => Promise<{ default: ComponentType<T> }>;
 type ImportFunction<T = Record<string, unknown>> = () => Promise<{ default: ComponentType<T> }>;
 type LazyLoadOptions = LazyComponentOptions;
 type LazyExoticComponent<T> = ComponentType<T>;
 
-interface LoadingState {
-  isLoading: boolean;
-  error: Error | null;
-  retryCount: number;
-  component: ComponentType<Record<string, unknown>> | null;
-}
-
 // Cache for preloaded components
-const preloadCache = new Map<string, Promise<any>>();
-const componentCache = new Map<string, ComponentType<Record<string, unknown>>>();
-const loadingStates = new Map<string, LoadingState>();
-const preloadPromises = new Map<string, Promise<ComponentType<Record<string, unknown>>>>();
+const preloadCache = new Map<string, Promise<{ default: ComponentType<Record<string, unknown>> }>>();
 
 // Retry mechanism for failed imports
 const retryImport = async <T>(
@@ -68,7 +57,7 @@ export const createLazyComponent = <T = Record<string, unknown>>(
     }
   }
 
-  return enhancedImportFn as any;
+  return enhancedImportFn as LazyExoticComponent<ComponentType<T>>;
 };
 
 // Preload function for manual preloading
@@ -107,7 +96,7 @@ export const createLazyComponentWithPreload = <T = Record<string, unknown>>(
   });
 
   // Add preload methods
-  (LazyComponent as any).preload = () => preloadComponent(importFn, `component-${componentName}`);
+  (LazyComponent as ComponentType<T> & { preload?: () => Promise<{ default: ComponentType<T> }> }).preload = () => preloadComponent(importFn, `component-${componentName}`);
   
   return LazyComponent;
 };

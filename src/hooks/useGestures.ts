@@ -1,4 +1,4 @@
-import { useRef, useEffect, RefObject } from 'react';
+import { useRef, useEffect, useCallback, RefObject } from 'react';
 
 interface GestureOptions {
   onSwipeLeft?: () => void;
@@ -79,7 +79,7 @@ export const useGestures = (options: GestureOptions = {}) => {
     }
   };
 
-  const handleTouchStart = (e: TouchEvent) => {
+  const handleTouchStart = useCallback((e: TouchEvent) => {
     const touch = e.touches[0];
     const touchPoint = getTouchPoint(touch);
     
@@ -100,9 +100,9 @@ export const useGestures = (options: GestureOptions = {}) => {
         onLongPress();
       }, longPressDelay);
     }
-  };
+  }, [onLongPress, longPressDelay]);
 
-  const handleTouchMove = (e: TouchEvent) => {
+  const handleTouchMove = useCallback((e: TouchEvent) => {
     if (!gestureState.current.startTouch) return;
 
     const touch = e.touches[0];
@@ -120,7 +120,6 @@ export const useGestures = (options: GestureOptions = {}) => {
     // Handle pinch gestures
     if (e.touches.length === 2) {
       const currentDistance = getDistance(e.touches[0], e.touches[1]);
-      const distanceChange = currentDistance - gestureState.current.lastDistance;
       const scaleChange = currentDistance / gestureState.current.initialDistance;
 
       if (Math.abs(scaleChange - 1) > pinchThreshold) {
@@ -133,9 +132,9 @@ export const useGestures = (options: GestureOptions = {}) => {
 
       gestureState.current.lastDistance = currentDistance;
     }
-  };
+  }, [onPinchOut, onPinchIn, pinchThreshold]);
 
-  const handleTouchEnd = (e: TouchEvent) => {
+  const handleTouchEnd = useCallback(() => {
     clearLongPressTimer();
 
     if (!gestureState.current.startTouch || !gestureState.current.lastTouch) {
@@ -198,7 +197,7 @@ export const useGestures = (options: GestureOptions = {}) => {
     gestureState.current.startTouch = null;
     gestureState.current.lastTouch = null;
     gestureState.current.isLongPress = false;
-  };
+  }, [onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown, onTap, onDoubleTap, swipeThreshold]);
 
   useEffect(() => {
     const element = ref.current;
@@ -227,7 +226,7 @@ export const useGestures = (options: GestureOptions = {}) => {
       element.removeEventListener('touchstart', preventDefault);
       element.removeEventListener('touchmove', preventDefault);
     };
-  }, []);
+  }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
 
   return {
     ref: ref as RefObject<HTMLElement>

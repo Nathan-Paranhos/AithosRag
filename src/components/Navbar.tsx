@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X } from '../utils/icons.tsx';
+import { Menu, X } from 'lucide-react';
 import Logo from './Logo';
 
 const Navbar: React.FC = () => {
@@ -13,109 +13,73 @@ const Navbar: React.FC = () => {
     setIsMenuOpen(false);
   };
 
-  return (
-    <nav className="fixed top-0 left-0 right-0 bg-white shadow-lg z-50">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex-shrink-0">
-            <Logo />
-          </div>
+  const navItems = [
+    { name: 'Sobre', href: 'sobre' },
+    { name: 'Produto', href: 'produto' },
+    { name: 'Desafios', href: 'desafios' },
+    { name: 'Contato', href: 'contato' }
+  ];
 
-          {/* Desktop Menu */}
-          <div className="hidden md:block">
-            <div className="ml-10 flex items-baseline space-x-8">
-              <button 
-                onClick={() => scrollToSection('home')}
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors duration-300"
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-900 border-b border-gray-700">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-20">
+          {/* Logo removed as requested */}
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-6">
+            {navItems.map((item) => (
+              <button
+                key={item.name}
+                onClick={() => scrollToSection(item.href)}
+                className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors"
               >
-                Home
+                {item.name}
               </button>
-              <button 
-                onClick={() => scrollToSection('sobre')}
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors duration-300"
-              >
-                Sobre
-              </button>
-              <button 
-                onClick={() => scrollToSection('produto')}
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors duration-300"
-              >
-                Produto
-              </button>
-              <button 
-                onClick={() => scrollToSection('desafios')}
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors duration-300"
-              >
-                Desafios
-              </button>
-              <button 
-                onClick={() => scrollToSection('contato')}
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors duration-300"
-              >
-                Contato
-              </button>
-            </div>
+            ))}
           </div>
 
           {/* CTA Button */}
-          <div className="hidden md:block">
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all duration-300 transform hover:scale-105">
-              Experimente Gratuitamente
-            </button>
-          </div>
+          <button 
+            onClick={() => scrollToSection('produto')}
+            className="hidden md:block bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            Experimente Gratuitamente
+          </button>
 
           {/* Mobile menu button */}
-          <div className="md:hidden">
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-gray-700 hover:text-blue-600 p-2"
-            >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-          </div>
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="md:hidden text-gray-300 hover:text-white p-2 transition-colors"
+          >
+            {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 bg-white border-t">
-              <button 
-                onClick={() => scrollToSection('home')}
-                className="block text-gray-700 hover:text-blue-600 px-3 py-2 text-base font-medium w-full text-left"
+          <div className="md:hidden px-4 py-4 bg-gray-800 border-t border-gray-700">
+            {navItems.map((item) => (
+              <button
+                key={item.name}
+                onClick={() => {
+                  scrollToSection(item.href);
+                  setIsMenuOpen(false);
+                }}
+                className="text-gray-300 hover:text-white block px-3 py-2 text-base font-medium w-full text-left transition-colors"
               >
-                Home
+                {item.name}
               </button>
-              <button 
-                onClick={() => scrollToSection('sobre')}
-                className="block text-gray-700 hover:text-blue-600 px-3 py-2 text-base font-medium w-full text-left"
-              >
-                Sobre
-              </button>
-              <button 
-                onClick={() => scrollToSection('produto')}
-                className="block text-gray-700 hover:text-blue-600 px-3 py-2 text-base font-medium w-full text-left"
-              >
-                Produto
-              </button>
-              <button 
-                onClick={() => scrollToSection('desafios')}
-                className="block text-gray-700 hover:text-blue-600 px-3 py-2 text-base font-medium w-full text-left"
-              >
-                Desafios
-              </button>
-              <button 
-                onClick={() => scrollToSection('contato')}
-                className="block text-gray-700 hover:text-blue-600 px-3 py-2 text-base font-medium w-full text-left"
-              >
-                Contato
-              </button>
-              <div className="px-3 py-2">
-                <button className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-300">
-                  Experimente Gratuitamente
-                </button>
-              </div>
-            </div>
+            ))}
+            <button 
+              onClick={() => {
+                scrollToSection('produto');
+                setIsMenuOpen(false);
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium w-full mt-4 transition-colors"
+            >
+              Experimente Gratuitamente
+            </button>
           </div>
         )}
       </div>

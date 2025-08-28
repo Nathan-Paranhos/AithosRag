@@ -1,37 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Building2,
-  Users,
-  Database,
-  Activity,
   DollarSign,
   TrendingUp,
   TrendingDown,
   AlertTriangle,
   CheckCircle,
-  XCircle,
-  Clock,
-  Settings,
-  Plus,
-  Edit,
-  Trash2,
   Search,
-  Filter,
-  Download,
-  Upload,
-  Eye,
-  EyeOff,
-  Shield,
-  Zap,
-  Globe,
-  Server,
-  HardDrive,
-  Cpu,
-  MemoryStick,
-  Network,
-  BarChart3,
-  PieChart,
-  LineChart
+  Filter
 } from 'lucide-react';
 import { useAuth } from './JWTAuthSystem';
 
@@ -109,24 +85,15 @@ interface TenantAlert {
 }
 
 const MultiTenantDashboard: React.FC = () => {
-  const { user: currentUser, hasPermission, hasRole } = useAuth();
+  const { hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'tenants' | 'resources' | 'billing' | 'alerts'>('overview');
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [metrics, setMetrics] = useState<TenantMetrics | null>(null);
-  const [resourceUsage, setResourceUsage] = useState<ResourceUsage[]>([]);
-  const [alerts, setAlerts] = useState<TenantAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [planFilter, setPlanFilter] = useState<string>('all');
-  const [selectedTenants, setSelectedTenants] = useState<string[]>([]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [sortBy, setSortBy] = useState<'name' | 'users' | 'revenue' | 'created' | 'activity'>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const generateMockTenants = (): Tenant[] => {
     const plans: Tenant['plan'][] = ['starter', 'professional', 'enterprise', 'custom'];
@@ -236,7 +203,7 @@ const MultiTenantDashboard: React.FC = () => {
         const mockTenants = generateMockTenants();
         setTenants(mockTenants);
         setMetrics(generateMockMetrics(mockTenants));
-      } catch (err) {
+      } catch {
         setError('Erro ao carregar dados dos tenants');
       } finally {
         setLoading(false);
@@ -324,7 +291,6 @@ const MultiTenantDashboard: React.FC = () => {
               </div>
               {hasPermission('tenants:write') && (
                 <button
-                  onClick={() => setShowCreateModal(true)}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" />

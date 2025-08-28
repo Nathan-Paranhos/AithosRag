@@ -220,7 +220,7 @@ export const useBundleOptimization = () => {
         }
       });
     }, 3000);
-  }, []);
+  }, [preloader]);
   
   return {
     preloadComponent: (importFn: () => Promise<{ default: ComponentType<unknown> }>, priority = 1) => {

@@ -28,6 +28,8 @@ export interface ModelMetrics {
   errorRate: number;
   avgResponseTime: number;
   rateLimitAvailable: boolean;
+  lastError?: number;
+  lastErrorTime?: number;
 }
 
 export interface ModelInfo {
@@ -82,6 +84,7 @@ export interface ChatResponse {
     completion_tokens: number;
     total_tokens: number;
   };
+  isOffline?: boolean;
 }
 
 export interface StreamChunk {
@@ -97,6 +100,7 @@ export interface StreamChunk {
     };
     finish_reason?: string;
   }>;
+  isOffline?: boolean;
 }
 
 class ApiService {
@@ -105,7 +109,7 @@ class ApiService {
 
   constructor() {
     // URL da API backend - será configurada para produção no Render
-    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3005';
     this.timeout = 30000; // 30 segundos
   }
 
@@ -183,24 +187,41 @@ class ApiService {
    * Obtém informações detalhadas dos modelos com métricas
    */
   async getModelsWithMetrics(): Promise<ModelInfo[]> {
+    // Primeiro, verificar se a API está funcionando
+    const isHealthy = await this.healthCheck();
+    if (!isHealthy) {
+      console.warn('🔄 API não está respondendo, usando modelos offline');
+      return this.getFallbackModelsWithStatus(0);
+    }
+
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // Reduzir timeout para 8s
+
       const response = await fetch(`${this.baseUrl}/api/chat/models`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        signal: AbortSignal.timeout(10000),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorMessage = this.getErrorMessage(response.status, response.statusText);
+        console.warn(`⚠️ ${errorMessage}, using fallback models`);
+        return this.getFallbackModelsWithStatus(response.status);
       }
 
       const data = await response.json();
-      return data.models || [];
+      return data.models || this.getFallbackModels();
     } catch (error) {
       console.error('❌ Failed to get models with metrics:', error);
-      return [];
+      const isNetworkError = this.isNetworkError(error);
+      const errorType = isNetworkError ? 'Network connection failed' : 'API request failed';
+      console.warn(`🔄 ${errorType}, using offline fallback models`);
+      return this.getFallbackModelsWithStatus(isNetworkError ? 0 : 500);
     }
   }
 
@@ -268,15 +289,29 @@ class ApiService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        
+        // Se for erro 503, usar fallback offline
+        if (response.status === 503) {
+          console.warn('🔄 API indisponível, usando resposta offline');
+          return this.getOfflineChatResponse(request);
+        }
+        
         throw new Error(
           errorData.error || 
-          `HTTP ${response.status}: ${response.statusText}`
+          this.getErrorMessage(response.status, response.statusText)
         );
       }
 
       return await response.json();
     } catch (error) {
       console.error('❌ Chat request failed:', error);
+      
+      // Se for erro de rede, usar fallback offline
+      if (this.isNetworkError(error)) {
+        console.warn('🔄 Erro de conexão, usando resposta offline');
+        return this.getOfflineChatResponse(request);
+      }
+      
       throw error;
     }
   }
@@ -297,9 +332,17 @@ class ApiService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        
+        // Se for erro 503, usar fallback offline
+        if (response.status === 503) {
+          console.warn('🔄 API indisponível, usando stream offline');
+          yield* this.getOfflineStreamResponse(request);
+          return;
+        }
+        
         throw new Error(
           errorData.error || 
-          `HTTP ${response.status}: ${response.statusText}`
+          this.getErrorMessage(response.status, response.statusText)
         );
       }
 
@@ -341,6 +384,14 @@ class ApiService {
       }
     } catch (error) {
       console.error('❌ Stream chat request failed:', error);
+      
+      // Se for erro de rede, usar fallback offline
+      if (this.isNetworkError(error)) {
+        console.warn('🔄 Erro de conexão, usando stream offline');
+        yield* this.getOfflineStreamResponse(request);
+        return;
+      }
+      
       throw error;
     }
   }
@@ -975,6 +1026,189 @@ class ApiService {
   // Criar stream de eventos do rate limiter
   createRateLimitStream(): EventSource {
     return new EventSource(`${this.baseUrl}/api/ratelimit/events`);
+  }
+
+  /**
+   * Verifica se o erro é de rede/conectividade
+   */
+  private isNetworkError(error: Error | TypeError | unknown): boolean {
+    return error instanceof TypeError ||
+           error.message?.includes('fetch') ||
+           error.message?.includes('network') ||
+           error.message?.includes('connection') ||
+           error.name === 'AbortError' ||
+           error.code === 'NETWORK_ERROR';
+  }
+
+  /**
+   * Obtém mensagem de erro amigável baseada no status HTTP
+   */
+  private getErrorMessage(status: number, statusText: string): string {
+    switch (status) {
+      case 503:
+        return 'Serviço temporariamente indisponível';
+      case 429:
+        return 'Limite de requisições excedido';
+      case 500:
+      case 502:
+      case 504:
+        return 'Erro interno do servidor';
+      case 401:
+        return 'Chave de API inválida';
+      case 403:
+        return 'Acesso negado';
+      case 404:
+        return 'Endpoint não encontrado';
+      default:
+        return `API indisponível (${status}: ${statusText})`;
+    }
+  }
+
+  /**
+   * Retorna modelos de fallback com status específico
+   */
+  private getFallbackModelsWithStatus(status: number): ModelInfo[] {
+    const statusMessage = status === 0 ? 'sem conexão' : 
+                         status === 503 ? 'serviço indisponível' :
+                         status === 429 ? 'limite excedido' : 'erro do servidor';
+    
+    return this.getFallbackModels().map(model => ({
+      ...model,
+      description: `${model.description} - ${statusMessage}`,
+      metrics: {
+        ...model.metrics,
+        lastError: status,
+        lastErrorTime: Date.now()
+      }
+    }));
+  }
+
+  /**
+   * Retorna modelos de fallback quando a API não está disponível
+   */
+  private getFallbackModels(): ModelInfo[] {
+    return [
+      {
+        id: 'llama-3.1-70b-versatile',
+        name: 'Llama 3.1 70B Versatile',
+        category: 'general',
+        description: 'Modelo versátil para tarefas gerais (modo offline)',
+        maxTokens: 8192,
+        temperature: 0.7,
+        topP: 0.9,
+        metrics: {
+          requests: 0,
+          errors: 0,
+          errorRate: 0,
+          avgResponseTime: 0,
+          rateLimitAvailable: false
+        }
+      },
+      {
+        id: 'llama-3.1-8b-instant',
+        name: 'Llama 3.1 8B Instant',
+        category: 'fast',
+        description: 'Modelo rápido para respostas instantâneas (modo offline)',
+        maxTokens: 8192,
+        temperature: 0.7,
+        topP: 0.9,
+        metrics: {
+          requests: 0,
+          errors: 0,
+          errorRate: 0,
+          avgResponseTime: 0,
+          rateLimitAvailable: false
+        }
+      },
+      {
+        id: 'mixtral-8x7b-32768',
+        name: 'Mixtral 8x7B',
+        category: 'reasoning',
+        description: 'Modelo para raciocínio complexo (modo offline)',
+        maxTokens: 32768,
+        temperature: 0.7,
+        topP: 0.9,
+        metrics: {
+          requests: 0,
+          errors: 0,
+          errorRate: 0,
+          avgResponseTime: 0,
+          rateLimitAvailable: false
+        }
+      }
+    ];
+  }
+
+  /**
+   * Gera resposta offline quando a API não está disponível
+   */
+  private getOfflineChatResponse(request: ChatRequest): ChatResponse {
+    const lastMessage = request.messages[request.messages.length - 1];
+    const userMessage = lastMessage?.content?.toLowerCase() || '';
+    
+    let offlineResponse = '';
+    
+    if (userMessage.includes('olá') || userMessage.includes('oi') || userMessage.includes('hello')) {
+      offlineResponse = 'Olá! Atualmente estou operando em modo offline devido à indisponibilidade temporária do serviço. Posso ajudá-lo com informações básicas sobre o AITHOS RAG.';
+    } else if (userMessage.includes('ajuda') || userMessage.includes('help')) {
+      offlineResponse = 'Estou em modo offline no momento. O AITHOS RAG é uma plataforma de IA avançada que utiliza tecnologia Groq para processamento rápido e eficiente. Quando o serviço estiver disponível novamente, poderei oferecer assistência completa.';
+    } else if (userMessage.includes('aithos') || userMessage.includes('groq')) {
+      offlineResponse = 'O AITHOS RAG combina a velocidade da tecnologia Groq com capacidades avançadas de recuperação de informações. Atualmente em modo offline, mas em breve estarei totalmente operacional para demonstrar todo o potencial da plataforma.';
+    } else {
+      offlineResponse = 'Desculpe, estou temporariamente em modo offline devido à indisponibilidade do serviço. O AITHOS RAG normalmente oferece respostas rápidas e precisas usando tecnologia Groq. Tente novamente em alguns instantes.';
+    }
+    
+    return {
+      id: `offline-${Date.now()}`,
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
+      model: 'offline-fallback',
+      choices: [{
+        index: 0,
+        message: {
+          role: 'assistant',
+          content: offlineResponse
+        },
+        finish_reason: 'stop'
+      }],
+      usage: {
+        prompt_tokens: 0,
+        completion_tokens: offlineResponse.split(' ').length,
+        total_tokens: offlineResponse.split(' ').length
+      },
+      isOffline: true
+    };
+  }
+
+  /**
+   * Gera stream offline simulado
+   */
+  private async *getOfflineStreamResponse(request: ChatRequest): AsyncGenerator<StreamChunk, void, unknown> {
+    const response = this.getOfflineChatResponse(request);
+    const content = response.choices[0].message.content;
+    const words = content.split(' ');
+    
+    for (let i = 0; i < words.length; i++) {
+      const chunk: StreamChunk = {
+        id: response.id,
+        object: 'chat.completion.chunk',
+        created: response.created,
+        model: response.model,
+        choices: [{
+          index: 0,
+          delta: {
+            content: (i === 0 ? '' : ' ') + words[i]
+          },
+          finish_reason: i === words.length - 1 ? 'stop' : null
+        }],
+        isOffline: true
+      };
+      
+      yield chunk;
+      
+      // Simular delay de streaming
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
   }
 
   /**

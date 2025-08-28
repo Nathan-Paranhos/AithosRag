@@ -1,6 +1,6 @@
 import React from 'react';
 import { Download, X, Wifi, WifiOff, Signal } from 'lucide-react';
-import { usePWA } from '../hooks/usePWA';
+import usePWA from '../hooks/usePWA';
 
 interface UpdateNotificationProps {
   className?: string;

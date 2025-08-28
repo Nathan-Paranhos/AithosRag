@@ -37,7 +37,7 @@ interface NotificationPayload {
   icon?: string;
   badge?: string;
   image?: string;
-  data?: any;
+  data?: unknown;
   actions?: NotificationAction[];
   tag?: string;
   requireInteraction?: boolean;
@@ -61,7 +61,7 @@ interface OfflineResource {
 interface SyncTask {
   id: string;
   type: 'upload' | 'download' | 'sync';
-  data: any;
+  data: unknown;
   priority: 'high' | 'medium' | 'low';
   retries: number;
   maxRetries: number;
@@ -88,12 +88,13 @@ interface InstallPromptEvent extends Event {
 // PWA Service Class
 class PWAService {
   private config: PWAConfig;
+  private deferredPrompt: BeforeInstallPromptEvent | null = null;
   private registration: ServiceWorkerRegistration | null = null;
   private installPrompt: InstallPromptEvent | null = null;
   private syncQueue: SyncTask[] = [];
   private offlineResources: OfflineResource[] = [];
   private stats: PWAStats;
-  private listeners: Map<string, Function[]> = new Map();
+  private listeners: Map<string, ((data?: unknown) => void)[]> = new Map();
 
   constructor(config: PWAConfig) {
     this.config = config;
@@ -234,7 +235,7 @@ class PWAService {
   private checkInstallationStatus(): void {
     // Check if running in standalone mode
     this.stats.isInstalled = window.matchMedia('(display-mode: standalone)').matches ||
-                             (window.navigator as any).standalone === true;
+                             (window.navigator as unknown as { standalone?: boolean }).standalone === true;
   }
 
   // Initialize Notifications
@@ -533,13 +534,13 @@ class PWAService {
   // Process Sync Task
   private async processSyncTask(task: SyncTask): Promise<void> {
     // Custom sync logic based on task data
-    if (task.data.handler) {
+    if (task.data.handler && typeof task.data.handler === 'function') {
       await task.data.handler(task.data.payload);
     }
   }
 
   // Store in IndexedDB
-  private async storeInIndexedDB(key: string, data: any): Promise<void> {
+  private async storeInIndexedDB(key: string, data: unknown): Promise<void> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open('PWACache', 1);
       
@@ -608,14 +609,14 @@ class PWAService {
   }
 
   // Event Management
-  public on(event: string, callback: Function): void {
+  public on(event: string, callback: (data?: unknown) => void): void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
     }
     this.listeners.get(event)!.push(callback);
   }
 
-  public off(event: string, callback: Function): void {
+  public off(event: string, callback: (data?: unknown) => void): void {
     const callbacks = this.listeners.get(event);
     if (callbacks) {
       const index = callbacks.indexOf(callback);
@@ -625,7 +626,7 @@ class PWAService {
     }
   }
 
-  private emit(event: string, data?: any): void {
+  private emit(event: string, data?: unknown): void {
     const callbacks = this.listeners.get(event);
     if (callbacks) {
       callbacks.forEach(callback => {

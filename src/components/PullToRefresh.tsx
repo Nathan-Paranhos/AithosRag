@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RefreshCw, ChevronDown } from 'lucide-react';
-import { useGestures } from '../hooks/useGestures';
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void> | void;
@@ -30,29 +29,26 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
   const [pullDistance, setPullDistance] = useState(0);
   const [canRefresh, setCanRefresh] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const gestureRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
   const currentY = useRef(0);
   const isDragging = useRef(false);
 
-  // Handle pull-to-refresh gesture
-  const { ref: gestureRef, pullProgress } = useGestures({
-    onPullToRefresh: async () => {
-      if (disabled || isRefreshing) return;
-      
-      setIsRefreshing(true);
-      try {
-        await onRefresh();
-      } catch (error) {
-        console.error('Refresh failed:', error);
-      } finally {
-        setIsRefreshing(false);
-        setPullDistance(0);
-        setCanRefresh(false);
-      }
-    },
-    pullThreshold: threshold,
-    enabled: !disabled && !isRefreshing
-  });
+  // Handle pull-to-refresh completion
+  const handleRefresh = async () => {
+    if (disabled || isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      await onRefresh();
+    } catch (error) {
+      console.error('Refresh failed:', error);
+    } finally {
+      setIsRefreshing(false);
+      setPullDistance(0);
+      setCanRefresh(false);
+    }
+  };
 
   // Handle touch events for custom pull behavior
   const handleTouchStart = (e: TouchEvent) => {
@@ -91,20 +87,12 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
     isDragging.current = false;
     
     if (canRefresh && !isRefreshing && !disabled) {
-      setIsRefreshing(true);
-      
-      try {
-        await onRefresh();
-      } catch (error) {
-        console.error('Refresh failed:', error);
-      } finally {
-        setIsRefreshing(false);
-      }
+      await handleRefresh();
+    } else {
+      // Animate back to original position
+      setPullDistance(0);
+      setCanRefresh(false);
     }
-    
-    // Animate back to original position
-    setPullDistance(0);
-    setCanRefresh(false);
   };
 
   // Bind touch events
@@ -202,7 +190,7 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
                         ? 'bg-blue-500'
                         : 'bg-gray-400 dark:bg-gray-500'
                     }`}
-                    animate={{ width: `${pullProgress * 100}%` }}
+                    animate={{ width: `${localPullProgress * 100}%` }}
                     transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                   />
                 </motion.div>

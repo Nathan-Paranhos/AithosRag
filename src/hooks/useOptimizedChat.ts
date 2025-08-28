@@ -5,9 +5,8 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { optimizedApiService, type OptimizedChatRequest, type OptimizedResponse } from '../services/optimizedApi';
-import { type Message, type ChatResponse, type StreamChunk } from '../services/api';
+import { type Message, type ChatResponse } from '../services/api';
 import { useViewport } from '../utils/viewport';
-import { debounce } from 'lodash-es';
 
 export interface ChatState {
   messages: Message[];
@@ -59,7 +58,7 @@ const DEFAULT_OPTIONS: ChatOptions = {
 };
 
 export function useOptimizedChat(options: ChatOptions = {}) {
-  const config = { ...DEFAULT_OPTIONS, ...options };
+  const config = useMemo(() => ({ ...DEFAULT_OPTIONS, ...options }), [options]);
   const { isMobile, isSlowConnection } = useViewport();
   
   // Estado do chat
@@ -105,43 +104,37 @@ export function useOptimizedChat(options: ChatOptions = {}) {
   }, [config, isMobile, isSlowConnection]);
   
   // Debounced functions
-  const debouncedAutoComplete = useCallback(
-    debounce(async (input: string) => {
-      if (!optimizedConfig.enableAI || input.length < 2) return;
+  const debouncedAutoComplete = useCallback(async (input: string) => {
+    if (!optimizedConfig.enableAI || input.length < 2) return;
+    
+    try {
+      const suggestions = await optimizedApiService.getAutoComplete(
+        input,
+        contextIdRef.current
+      );
       
-      try {
-        const suggestions = await optimizedApiService.getAutoComplete(
-          input,
-          contextIdRef.current
-        );
-        
-        setState(prev => ({
-          ...prev,
-          autoComplete: suggestions
-        }));
-      } catch (error) {
-        console.warn('⚠️ Auto-complete failed:', error);
-      }
-    }, 300),
-    [optimizedConfig.enableAI]
-  );
+      setState(prev => ({
+        ...prev,
+        autoComplete: suggestions
+      }));
+    } catch (error) {
+      console.warn('⚠️ Auto-complete failed:', error);
+    }
+  }, [optimizedConfig.enableAI]);
   
-  const debouncedSentimentAnalysis = useCallback(
-    debounce(async (text: string) => {
-      if (!optimizedConfig.enableAI) return;
-      
-      try {
-        const sentiment = await optimizedApiService.analyzeSentiment(text);
-        setState(prev => ({
-          ...prev,
-          sentiment
-        }));
-      } catch (error) {
-        console.warn('⚠️ Sentiment analysis failed:', error);
-      }
-    }, 500),
-    [optimizedConfig.enableAI]
-  );
+  const debouncedSentimentAnalysis = useCallback(async (text: string) => {
+    if (!optimizedConfig.enableAI) return;
+    
+    try {
+      const sentiment = await optimizedApiService.analyzeSentiment(text);
+      setState(prev => ({
+        ...prev,
+        sentiment
+      }));
+    } catch (error) {
+      console.warn('⚠️ Sentiment analysis failed:', error);
+    }
+  }, [optimizedConfig.enableAI]);
   
   // Função para enviar mensagem (sem streaming)
   const sendMessage = useCallback(async (
@@ -235,7 +228,7 @@ export function useOptimizedChat(options: ChatOptions = {}) {
         error: error.message || 'Erro ao enviar mensagem'
       }));
     }
-  }, [state.messages, optimizedConfig, debouncedSentimentAnalysis]);
+  }, [state.messages, state.isLoading, optimizedConfig, debouncedSentimentAnalysis]);
   
   // Função para enviar mensagem com streaming
   const sendMessageStream = useCallback(async (
@@ -345,7 +338,7 @@ export function useOptimizedChat(options: ChatOptions = {}) {
     } finally {
       streamingRef.current = false;
     }
-  }, [state.messages, optimizedConfig, debouncedSentimentAnalysis]);
+  }, [state.messages, state.isStreaming, optimizedConfig, debouncedSentimentAnalysis]);
   
   // Limpar mensagens
   const clearMessages = useCallback(() => {

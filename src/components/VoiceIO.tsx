@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MicOff, Volume2, VolumeX, Play, Pause, Square, Settings, Headphones, Waves } from 'lucide-react';
+import { Mic, MicOff, Volume2, Play, Pause, Square, Settings, Headphones, Waves } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { cn } from '../utils/cn';
@@ -41,11 +41,17 @@ const useVoiceRecognition = () => {
   const [transcript, setTranscript] = useState('');
   const [confidence, setConfidence] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   useEffect(() => {
     // Check for browser support
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognition = (window as Window & typeof globalThis & {
+      SpeechRecognition?: typeof SpeechRecognition;
+      webkitSpeechRecognition?: typeof SpeechRecognition;
+    }).SpeechRecognition || (window as Window & typeof globalThis & {
+      SpeechRecognition?: typeof SpeechRecognition;
+      webkitSpeechRecognition?: typeof SpeechRecognition;
+    }).webkitSpeechRecognition;
     
     if (SpeechRecognition) {
       setIsSupported(true);
@@ -61,7 +67,7 @@ const useVoiceRecognition = () => {
         setError(null);
       };
       
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
         let finalTranscript = '';
         let interimTranscript = '';
         let maxConfidence = 0;
@@ -80,7 +86,7 @@ const useVoiceRecognition = () => {
         setConfidence(maxConfidence);
       };
       
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         setError(event.error);
         setIsListening(false);
       };
@@ -241,8 +247,7 @@ const VoiceIO: React.FC<VoiceIOProps> = ({
   onSpeechStart,
   onSpeechEnd,
   onError,
-  autoSpeak = false,
-  language = 'pt-BR'
+  autoSpeak = false
 }) => {
   const [settings, setSettings] = useState<VoiceSettings>({
     language: 'pt-BR',
@@ -270,8 +275,6 @@ const VoiceIO: React.FC<VoiceIOProps> = ({
     transcript,
     confidence,
     error: recognitionError,
-    startListening,
-    stopListening,
     toggleListening
   } = useVoiceRecognition();
 

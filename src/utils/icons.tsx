@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React from 'react';
 
 /**
@@ -5,8 +6,8 @@ import React from 'react';
  * Importa apenas os ícones necessários do lucide-react para otimizar o bundle
  */
 
-// Importações centralizadas dos ícones mais usados
-export {
+// Importações centralizadas dos ícones realmente utilizados
+import {
   // Navigation & UI
   Menu,
   X,
@@ -19,11 +20,13 @@ export {
   ChevronDown,
   ChevronRight,
   ChevronLeft,
+  ChevronUp,
   ArrowRight,
   ArrowUp,
   ArrowDown,
   ArrowUpRight,
   ArrowDownRight,
+  MoreVertical,
   
   // Communication
   MessageSquare,
@@ -42,6 +45,7 @@ export {
   RefreshCw,
   Clock,
   Activity,
+  Info,
   
   // Media & Content
   Eye,
@@ -50,6 +54,7 @@ export {
   Upload,
   Copy,
   Share2,
+  Edit,
   Edit3,
   Trash2,
   Archive,
@@ -66,6 +71,7 @@ export {
   Database,
   Shield,
   Lock,
+  Key,
   
   // Analytics & Charts
   BarChart3,
@@ -111,7 +117,6 @@ export {
   Star,
   History,
   RotateCcw,
-  Info,
   Bug,
   Package,
   Route as RouteIcon,
@@ -121,8 +126,7 @@ export {
   Signal,
   Check,
   UserPlus,
-  Languages,
-  Edit
+  Languages
 } from 'lucide-react';
 
 // Tipos para os ícones
@@ -173,4 +177,106 @@ export const DynamicIcon: React.FC<{
 }> = ({ name, size = 20, className = '' }) => {
   const IconComponent = iconMap[name];
   return <IconComponent size={size} className={className} />;
+};
+
+// Exportar ícones individuais para uso direto
+export {
+  Menu,
+  X,
+  Home,
+  Search,
+  Settings,
+  User,
+  Users,
+  Plus,
+  ChevronDown,
+  ChevronRight,
+  ChevronLeft,
+  ChevronUp,
+  ArrowRight,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpRight,
+  ArrowDownRight,
+  MoreVertical,
+  MessageSquare,
+  MessageCircle,
+  Mail,
+  Phone,
+  Send,
+  Bell,
+  BellOff,
+  CheckCircle,
+  AlertCircle,
+  AlertTriangle,
+  Loader2,
+  RefreshCw,
+  Clock,
+  Activity,
+  Info,
+  Eye,
+  EyeOff,
+  Download,
+  Upload,
+  Copy,
+  Share2,
+  Edit,
+  Edit3,
+  Trash2,
+  Archive,
+  FileText,
+  Image,
+  Code,
+  Brain,
+  Bot,
+  Cpu,
+  Zap,
+  Sparkles,
+  Database,
+  Shield,
+  Lock,
+  Key,
+  BarChart3,
+  TrendingUp,
+  TrendingDown,
+  Target,
+  Wifi,
+  WifiOff,
+  Globe,
+  Smartphone,
+  Monitor,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  Play,
+  Pause,
+  Square,
+  Headphones,
+  Waves,
+  Video,
+  Moon,
+  Sun,
+  Palette,
+  Building,
+  Building2,
+  DollarSign,
+  Crown,
+  Filter,
+  Calendar,
+  MapPin,
+  Tag,
+  Star,
+  History,
+  RotateCcw,
+  Bug,
+  Package,
+  RouteIcon,
+  Link,
+  Hash,
+  Minus,
+  Signal,
+  Check,
+  UserPlus,
+  Languages
 };

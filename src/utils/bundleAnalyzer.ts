@@ -1,4 +1,34 @@
 // Bundle Analysis and Performance Monitoring
+import React from 'react';
+
+interface WebpackStats {
+  chunks?: WebpackChunk[];
+  assets?: WebpackAsset[];
+  modules?: WebpackModule[];
+}
+
+interface WebpackChunk {
+  id: string | number;
+  names?: string[];
+  files?: string[];
+  initial?: boolean;
+}
+
+interface WebpackAsset {
+  name: string;
+  size: number;
+}
+
+interface WebpackModule {
+  name?: string;
+  identifier?: string;
+  size?: number;
+  chunks?: (string | number)[];
+  reasons?: { moduleName: string }[];
+  depth?: number;
+  providedExports?: string[];
+  usedExports?: string[];
+}
 
 interface BundleMetrics {
   totalSize: number;
@@ -87,7 +117,7 @@ class BundleAnalyzer {
   }
 
   private recordResourceLoad(entry: PerformanceResourceTiming): void {
-    const { name, transferSize, duration } = entry;
+    const { name, duration } = entry;
     
     // Track JavaScript and CSS files
     if (name.includes('.js') || name.includes('.css')) {
@@ -121,16 +151,16 @@ class BundleAnalyzer {
   }
 
   // Analyze bundle from webpack stats
-  public analyzeBundleStats(stats: any): BundleMetrics {
+  public analyzeBundleStats(stats: WebpackStats): BundleMetrics {
     const chunks = stats.chunks || [];
     const assets = stats.assets || [];
     const modules = stats.modules || [];
 
-    const totalSize = assets.reduce((sum: number, asset: any) => sum + asset.size, 0);
+    const totalSize = assets.reduce((sum: number, asset: WebpackAsset) => sum + asset.size, 0);
     const gzippedSize = this.estimateGzippedSize(totalSize);
     
     const largestChunks = chunks
-      .map((chunk: any) => this.analyzeChunk(chunk, modules))
+      .map((chunk: WebpackChunk) => this.analyzeChunk(chunk, modules))
       .sort((a: ChunkInfo, b: ChunkInfo) => b.size - a.size)
       .slice(0, 10);
 
@@ -160,7 +190,7 @@ class BundleAnalyzer {
     return this.metrics;
   }
 
-  private analyzeChunk(chunk: any, allModules: any[]): ChunkInfo {
+  private analyzeChunk(chunk: WebpackChunk, allModules: WebpackModule[]): ChunkInfo {
     const chunkModules = allModules.filter(module => 
       module.chunks && module.chunks.includes(chunk.id)
     );
@@ -168,7 +198,7 @@ class BundleAnalyzer {
     const modules = chunkModules.map(module => ({
       name: module.name || module.identifier,
       size: module.size || 0,
-      reasons: module.reasons?.map((r: any) => r.moduleName) || [],
+      reasons: module.reasons?.map((r: { moduleName: string }) => r.moduleName) || [],
       isEntry: module.depth === 0,
       chunks: module.chunks || []
     }));
@@ -187,7 +217,7 @@ class BundleAnalyzer {
     };
   }
 
-  private findDuplicateModules(modules: any[]): string[] {
+  private findDuplicateModules(modules: WebpackModule[]): string[] {
     const moduleNames = new Map<string, number>();
     const duplicates: string[] = [];
 
@@ -206,7 +236,7 @@ class BundleAnalyzer {
     return duplicates;
   }
 
-  private findUnusedExports(modules: any[]): string[] {
+  private findUnusedExports(modules: WebpackModule[]): string[] {
     // This is a simplified implementation
     // In a real scenario, you'd need more sophisticated analysis
     const unusedExports: string[] = [];
@@ -339,7 +369,21 @@ class BundleAnalyzer {
   public generateReport(): {
     metrics: BundleMetrics | null;
     suggestions: OptimizationSuggestion[];
-    performanceData: any;
+    performanceData: {
+      resourceTimings: {
+        name: string;
+        duration: number;
+        transferSize: number;
+        loadTime: number;
+      }[];
+      navigationTiming: PerformanceEntry | undefined;
+      paintTimings: PerformanceEntry[];
+      memoryUsage: {
+        usedJSHeapSize: number;
+        totalJSHeapSize: number;
+        jsHeapSizeLimit: number;
+      } | null;
+    };
     recommendations: string[];
   } {
     const suggestions = this.getOptimizationSuggestions();
@@ -354,7 +398,21 @@ class BundleAnalyzer {
     };
   }
 
-  private getPerformanceData(): any {
+  private getPerformanceData(): {
+    resourceTimings: {
+      name: string;
+      duration: number;
+      transferSize: number;
+      loadTime: number;
+    }[];
+    navigationTiming: PerformanceEntry | undefined;
+    paintTimings: PerformanceEntry[];
+    memoryUsage: {
+      usedJSHeapSize: number;
+      totalJSHeapSize: number;
+      jsHeapSizeLimit: number;
+    } | null;
+  } {
     const resourceTimings = performance.getEntriesByType('resource')
       .filter(entry => entry.name.includes('.js') || entry.name.includes('.css'))
       .map(entry => ({
@@ -368,10 +426,26 @@ class BundleAnalyzer {
       resourceTimings,
       navigationTiming: performance.getEntriesByType('navigation')[0],
       paintTimings: performance.getEntriesByType('paint'),
-      memoryUsage: (performance as any).memory ? {
-        usedJSHeapSize: (performance as any).memory.usedJSHeapSize,
-        totalJSHeapSize: (performance as any).memory.totalJSHeapSize,
-        jsHeapSizeLimit: (performance as any).memory.jsHeapSizeLimit
+      memoryUsage: (performance as unknown as { memory?: {
+        usedJSHeapSize: number;
+        totalJSHeapSize: number;
+        jsHeapSizeLimit: number;
+      }}).memory ? {
+        usedJSHeapSize: (performance as unknown as { memory: {
+          usedJSHeapSize: number;
+          totalJSHeapSize: number;
+          jsHeapSizeLimit: number;
+        }}).memory.usedJSHeapSize,
+        totalJSHeapSize: (performance as unknown as { memory: {
+          usedJSHeapSize: number;
+          totalJSHeapSize: number;
+          jsHeapSizeLimit: number;
+        }}).memory.totalJSHeapSize,
+        jsHeapSizeLimit: (performance as unknown as { memory: {
+          usedJSHeapSize: number;
+          totalJSHeapSize: number;
+          jsHeapSizeLimit: number;
+        }}).memory.jsHeapSizeLimit
       } : null
     };
   }

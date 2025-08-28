@@ -31,7 +31,7 @@ interface CollaborationEvent {
   type: 'join' | 'leave' | 'edit' | 'cursor' | 'selection' | 'message' | 'typing';
   userId: string;
   timestamp: Date;
-  data: any;
+  data: Record<string, unknown>;
 }
 
 interface LiveMessage {
@@ -98,13 +98,13 @@ class MockWebSocket {
     }
   }
 
-  emit(event: string, data: any) {
+  emit(event: string, data: Record<string, unknown>) {
     if (this.listeners[event]) {
       this.listeners[event].forEach(callback => callback(data));
     }
   }
 
-  send(data: any) {
+  send(data: Record<string, unknown>) {
     if (this.isConnected) {
       // Simulate server response
       setTimeout(() => {
@@ -166,7 +166,7 @@ const RealTimeCollaboration: React.FC<RealTimeCollaborationProps> = ({
 
   // Initialize WebSocket connection
   useEffect(() => {
-    const ws = new MockWebSocket(`ws://localhost:3001/collaboration/${conversationId}`);
+    const ws = new MockWebSocket(`ws://localhost:3005/collaboration/${conversationId}`);
     wsRef.current = ws;
 
     ws.on('open', () => {
@@ -181,7 +181,7 @@ const RealTimeCollaboration: React.FC<RealTimeCollaborationProps> = ({
       });
     });
 
-    ws.on('message', (event: any) => {
+    ws.on('message', (event: Record<string, unknown>) => {
       handleWebSocketMessage(event);
     });
 
@@ -190,7 +190,7 @@ const RealTimeCollaboration: React.FC<RealTimeCollaborationProps> = ({
       setConnectionStatus('disconnected');
     });
 
-    ws.on('error', (error: any) => {
+    ws.on('error', (error: unknown) => {
       console.error('WebSocket error:', error);
       setConnectionStatus('disconnected');
     });
@@ -206,7 +206,7 @@ const RealTimeCollaboration: React.FC<RealTimeCollaborationProps> = ({
   }, [conversationId, currentUser]);
 
   // Handle WebSocket messages
-  const handleWebSocketMessage = useCallback((event: any) => {
+  const handleWebSocketMessage = useCallback((event: Record<string, unknown>) => {
     const { type, data, userId } = event;
 
     switch (type) {
@@ -389,7 +389,7 @@ const RealTimeCollaboration: React.FC<RealTimeCollaborationProps> = ({
               <div className="flex -space-x-2">
                 {onlineUsers.slice(0, 5).map(user => (
                   <div key={user.id} className="relative">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-medium border-2 border-background">
+                    <div className="w-8 h-8 rounded-full bg-brand-main-blue flex items-center justify-center text-white text-xs font-medium border-2 border-background">
                       {user.name.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div className={cn(
@@ -449,7 +449,7 @@ const RealTimeCollaboration: React.FC<RealTimeCollaborationProps> = ({
               {/* Current User */}
               <div className="flex items-center gap-3 p-2 bg-primary/5 rounded-lg">
                 <div className="relative">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-medium">
+                  <div className="w-10 h-10 rounded-full bg-brand-main-blue flex items-center justify-center text-white font-medium">
                     {currentUser.name.split(' ').map(n => n[0]).join('')}
                   </div>
                   <div className={cn(
@@ -473,7 +473,7 @@ const RealTimeCollaboration: React.FC<RealTimeCollaborationProps> = ({
               {users.map(user => (
                 <div key={user.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
                   <div className="relative">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center text-white font-medium">
+                    <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center text-white font-medium">
                       {user.name.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div className={cn(
@@ -530,7 +530,7 @@ const RealTimeCollaboration: React.FC<RealTimeCollaborationProps> = ({
                       'flex gap-3',
                       isCurrentUser ? 'flex-row-reverse' : 'flex-row'
                     )}>
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
                         {author?.name.split(' ').map(n => n[0]).join('') || '?'}
                       </div>
                       <div className={cn(
@@ -617,7 +617,7 @@ const RealTimeCollaboration: React.FC<RealTimeCollaborationProps> = ({
             }}
           >
             <div className="flex items-center gap-1">
-              <div className="w-4 h-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full" />
+              <div className="w-4 h-4 bg-brand-main-blue rounded-full" />
               <div className="px-2 py-1 bg-black text-white text-xs rounded whitespace-nowrap">
                 {user.name}
               </div>

@@ -4,24 +4,47 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Modern Blue Theme - Consistent and Professional
         primary: {
           50: '#eff6ff',
           100: '#dbeafe',
           200: '#bfdbfe',
           300: '#93c5fd',
           400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#007BFF', // Primary blue
-          700: '#1d4ed8',
+          500: '#3b82f6', // Main blue - more vibrant
+          600: '#2563eb',
+          700: '#1d4ed8', // Hover blue
           800: '#1e40af',
           900: '#1e3a8a',
         },
+        // Enhanced grays with better contrast
         gray: {
-          50: '#F8F9FA',
-          100: '#E9ECEF',
-          600: '#6B7280',
-          800: '#343A40',
+          50: '#f9fafb',
+          100: '#f3f4f6',
+          200: '#e5e7eb',
+          300: '#d1d5db',
+          400: '#9ca3af',
+          500: '#6b7280',
+          600: '#4b5563',
+          700: '#374151',
+          800: '#1f2937',
           900: '#111827',
+        },
+        // Unified brand colors
+        brand: {
+          'dark-blue': '#1e3a8a',
+          'medium-blue': '#2563eb',
+          'main-blue': '#3b82f6',
+          'hover-blue': '#1d4ed8',
+          'light-blue': '#60a5fa',
+          'white': '#ffffff',
+        },
+        // Accent colors for better visual hierarchy
+        accent: {
+          'emerald': '#10b981',
+          'amber': '#f59e0b',
+          'rose': '#f43f5e',
+          'purple': '#8b5cf6',
         }
       },
       fontFamily: {

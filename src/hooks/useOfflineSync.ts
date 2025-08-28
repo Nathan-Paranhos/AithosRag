@@ -1,5 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useOfflineStorage, PendingSyncItem } from './useOfflineStorage';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useOfflineStorage } from './useOfflineStorage';
+import type { PendingSyncItem } from './useOfflineStorage';
+
+interface SyncConfig {
+  syncInterval: number;
+  retryDelay: number;
+  maxRetries: number;
+  batchSize: number;
+}
 
 interface SyncStatus {
   isOnline: boolean;
@@ -9,22 +17,15 @@ interface SyncStatus {
   syncErrors: string[];
 }
 
-interface SyncConfig {
-  maxRetries: number;
-  retryDelay: number;
-  batchSize: number;
-  syncInterval: number;
-}
-
 const DEFAULT_CONFIG: SyncConfig = {
+  syncInterval: 30000, // 30 seconds
+  retryDelay: 5000,    // 5 seconds
   maxRetries: 3,
-  retryDelay: 5000, // 5 seconds
-  batchSize: 10,
-  syncInterval: 30000 // 30 seconds
+  batchSize: 10
 };
 
 export const useOfflineSync = (config: Partial<SyncConfig> = {}) => {
-  const finalConfig = { ...DEFAULT_CONFIG, ...config };
+  const finalConfig = useMemo(() => ({ ...DEFAULT_CONFIG, ...config }), [config]);
   const {
     getPendingSyncItems,
     markSyncCompleted,
@@ -46,7 +47,7 @@ export const useOfflineSync = (config: Partial<SyncConfig> = {}) => {
   // API endpoints for syncing
   const API_BASE = '/api';
 
-  const syncConversation = async (item: PendingSyncItem): Promise<boolean> => {
+  const syncConversation = useCallback(async (item: PendingSyncItem): Promise<boolean> => {
     try {
       const endpoint = `${API_BASE}/conversations`;
       const method = item.action === 'create' ? 'POST' : 
@@ -69,9 +70,9 @@ export const useOfflineSync = (config: Partial<SyncConfig> = {}) => {
       console.error('Failed to sync conversation:', error);
       return false;
     }
-  };
+  }, []);
 
-  const syncMessage = async (item: PendingSyncItem): Promise<boolean> => {
+  const syncMessage = useCallback(async (item: PendingSyncItem): Promise<boolean> => {
     try {
       const endpoint = `${API_BASE}/messages`;
       const method = item.action === 'create' ? 'POST' : 
@@ -94,9 +95,9 @@ export const useOfflineSync = (config: Partial<SyncConfig> = {}) => {
       console.error('Failed to sync message:', error);
       return false;
     }
-  };
+  }, []);
 
-  const syncUserData = async (item: PendingSyncItem): Promise<boolean> => {
+  const syncUserData = useCallback(async (item: PendingSyncItem): Promise<boolean> => {
     try {
       const endpoint = `${API_BASE}/user-data`;
       const method = item.action === 'create' ? 'POST' : 
@@ -119,9 +120,9 @@ export const useOfflineSync = (config: Partial<SyncConfig> = {}) => {
       console.error('Failed to sync user data:', error);
       return false;
     }
-  };
+  }, []);
 
-  const syncItem = async (item: PendingSyncItem): Promise<boolean> => {
+  const syncItem = useCallback(async (item: PendingSyncItem): Promise<boolean> => {
     switch (item.type) {
       case 'conversation':
         return await syncConversation(item);
@@ -133,7 +134,7 @@ export const useOfflineSync = (config: Partial<SyncConfig> = {}) => {
         console.warn('Unknown sync item type:', item.type);
         return false;
     }
-  };
+  }, [syncConversation, syncMessage, syncUserData]);
 
   const performSync = useCallback(async (): Promise<void> => {
     if (!storageInitialized || !syncStatus.isOnline || isSyncingRef.current) {
@@ -159,7 +160,6 @@ export const useOfflineSync = (config: Partial<SyncConfig> = {}) => {
       setSyncStatus(prev => ({ ...prev, pendingItems: pendingItems.length }));
 
       const errors: string[] = [];
-      let syncedCount = 0;
 
       // Process items in batches
       for (let i = 0; i < pendingItems.length; i += finalConfig.batchSize) {
@@ -170,7 +170,6 @@ export const useOfflineSync = (config: Partial<SyncConfig> = {}) => {
             const success = await syncItem(item);
             if (success) {
               await markSyncCompleted(item.id);
-              syncedCount++;
             } else {
               // Increment retry count
               item.retries++;
@@ -219,7 +218,7 @@ export const useOfflineSync = (config: Partial<SyncConfig> = {}) => {
     } finally {
       isSyncingRef.current = false;
     }
-  }, [storageInitialized, syncStatus.isOnline, getPendingSyncItems, markSyncCompleted, finalConfig]);
+  }, [storageInitialized, syncStatus.isOnline, getPendingSyncItems, markSyncCompleted, finalConfig, syncItem]);
 
   // Manual sync trigger
   const triggerSync = useCallback(async (): Promise<void> => {

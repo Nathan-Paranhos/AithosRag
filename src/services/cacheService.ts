@@ -2,7 +2,7 @@
 // Implements multiple caching strategies with TTL, LRU, and persistence
 
 // Types
-interface CacheEntry<T = any> {
+interface CacheEntry<T = unknown> {
   key: string;
   value: T;
   timestamp: number;
@@ -244,8 +244,8 @@ class AdvancedCacheService {
   }
 
   // Advanced Operations
-  getByTag(tag: string): Array<{ key: string; value: any }> {
-    const results: Array<{ key: string; value: any }> = [];
+  getByTag(tag: string): Array<{ key: string; value: unknown }> {
+    const results: Array<{ key: string; value: unknown }> = [];
     
     for (const [key, entry] of this.cache.entries()) {
       if (entry.tags.includes(tag) && !this.isExpired(entry)) {
@@ -281,28 +281,30 @@ class AdvancedCacheService {
       priority?: CacheEntry['priority'];
     }
   ): Promise<T> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // Try to get from cache first
-        const cached = this.get<T>(key);
-        if (cached !== null) {
-          resolve(cached);
-          return;
+    return new Promise((resolve, reject) => {
+      (async () => {
+        try {
+          // Try to get from cache first
+          const cached = this.get<T>(key);
+          if (cached !== null) {
+            resolve(cached);
+            return;
+          }
+          
+          // Generate new value
+          const value = await factory();
+          this.set(key, value, options);
+          resolve(value);
+        } catch (error) {
+          reject(error);
         }
-        
-        // Generate new value
-        const value = await factory();
-        this.set(key, value, options);
-        resolve(value);
-      } catch (error) {
-        reject(error);
-      }
+      })();
     });
   }
 
   // Batch Operations
-  mget(keys: string[]): Record<string, any> {
-    const results: Record<string, any> = {};
+  mget(keys: string[]): Record<string, unknown> {
+    const results: Record<string, unknown> = {};
     
     for (const key of keys) {
       const value = this.get(key);
@@ -314,7 +316,7 @@ class AdvancedCacheService {
     return results;
   }
 
-  mset(entries: Array<{ key: string; value: any; options?: any }>): boolean[] {
+  mset(entries: Array<{ key: string; value: unknown; options?: Partial<{ ttl: number; tags: string[]; priority: CacheEntry['priority'] }> }>): boolean[] {
     return entries.map(({ key, value, options }) => 
       this.set(key, value, options)
     );
@@ -371,7 +373,7 @@ class AdvancedCacheService {
   }
 
   // Cache Warming
-  async warmCache(entries: Array<{ key: string; factory: () => Promise<any> | any; options?: any }>): Promise<void> {
+  async warmCache(entries: Array<{ key: string; factory: () => Promise<unknown> | unknown; options?: Partial<{ ttl: number; tags: string[]; priority: CacheEntry['priority'] }> }>): Promise<void> {
     const promises = entries.map(async ({ key, factory, options }) => {
       try {
         const value = await factory();
@@ -417,7 +419,7 @@ class AdvancedCacheService {
     return Date.now() - entry.timestamp > entry.ttl;
   }
 
-  private serialize<T>(value: T): any {
+  private serialize<T>(value: T): unknown {
     if (this.config.compressionEnabled && typeof value === 'string' && value.length > 1000) {
       // Simple compression simulation (in real implementation, use actual compression)
       return { __compressed: true, data: value };
@@ -431,7 +433,7 @@ class AdvancedCacheService {
     return value;
   }
 
-  private deserialize<T>(value: any): T {
+  private deserialize<T>(value: unknown): T {
     if (value && typeof value === 'object') {
       if (value.__compressed) {
         return value.data;
@@ -445,7 +447,7 @@ class AdvancedCacheService {
     return value;
   }
 
-  private calculateSize(value: any): number {
+  private calculateSize(value: unknown): number {
     try {
       return JSON.stringify(value).length * 2; // Rough estimate (UTF-16)
     } catch {

@@ -56,7 +56,7 @@ export interface AnalyticsEvent {
   userId?: string;
   sessionId: string;
   timestamp: Date;
-  properties: Record<string, any>;
+  properties: Record<string, unknown>;
   tenantId: string;
 }
 
@@ -169,7 +169,7 @@ export interface WidgetConfig {
   chartType?: 'line' | 'bar' | 'pie' | 'doughnut' | 'area';
   timeRange?: string;
   groupBy?: string;
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
 }
 
 export interface LayoutConfig {
@@ -209,7 +209,7 @@ class AnalyticsService {
   }
 
   // Track custom event
-  track(type: EventType, category: string, action: string, properties: Record<string, any> = {}): void {
+  track(type: EventType, category: string, action: string, properties: Record<string, unknown> = {}): void {
     const event: AnalyticsEvent = {
       id: this.generateId(),
       type,
@@ -238,7 +238,7 @@ class AnalyticsService {
   }
 
   // Track click event
-  trackClick(element: string, properties: Record<string, any> = {}): void {
+  trackClick(element: string, properties: Record<string, unknown> = {}): void {
     this.track('click', 'interaction', 'click', {
       element,
       ...properties
@@ -246,7 +246,7 @@ class AnalyticsService {
   }
 
   // Track form submission
-  trackFormSubmit(formId: string, properties: Record<string, any> = {}): void {
+  trackFormSubmit(formId: string, properties: Record<string, unknown> = {}): void {
     this.track('form_submit', 'interaction', 'form_submit', {
       formId,
       ...properties
@@ -265,7 +265,7 @@ class AnalyticsService {
   }
 
   // Track conversion
-  trackConversion(type: string, value?: number, properties: Record<string, any> = {}): void {
+  trackConversion(type: string, value?: number, properties: Record<string, unknown> = {}): void {
     this.track('conversion', 'business', type, {
       value,
       ...properties
@@ -286,7 +286,7 @@ class AnalyticsService {
   // Get KPIs
   async getKPIs(filter?: AnalyticsFilter): Promise<KPI[]> {
     try {
-      const params = filter ? `?${new URLSearchParams(filter as any)}` : '';
+      const params = filter ? `?${new URLSearchParams(this.serializeFilter(filter))}` : '';
       const response = await authService.authenticatedRequest(`/kpis${params}`);
       return await response.json();
     } catch (error) {
@@ -311,7 +311,7 @@ class AnalyticsService {
   // Get user behavior analytics
   async getUserBehavior(filter?: AnalyticsFilter): Promise<UserBehavior[]> {
     try {
-      const params = filter ? `?${new URLSearchParams(filter as any)}` : '';
+      const params = filter ? `?${new URLSearchParams(this.serializeFilter(filter))}` : '';
       const response = await authService.authenticatedRequest(`/behavior${params}`);
       return await response.json();
     } catch (error) {
@@ -334,7 +334,7 @@ class AnalyticsService {
   // Get error tracking data
   async getErrorTracking(filter?: AnalyticsFilter): Promise<ErrorTracking[]> {
     try {
-      const params = filter ? `?${new URLSearchParams(filter as any)}` : '';
+      const params = filter ? `?${new URLSearchParams(this.serializeFilter(filter))}` : '';
       const response = await authService.authenticatedRequest(`/errors${params}`);
       return await response.json();
     } catch (error) {
@@ -486,6 +486,22 @@ class AnalyticsService {
 
   private generateId(): string {
     return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private serializeFilter(filter: AnalyticsFilter): Record<string, string> {
+    const serialized: Record<string, string> = {};
+    
+    if (filter.dateRange) {
+      serialized.startDate = filter.dateRange.start.toISOString();
+      serialized.endDate = filter.dateRange.end.toISOString();
+    }
+    
+    if (filter.tenantId) serialized.tenantId = filter.tenantId;
+    if (filter.userId) serialized.userId = filter.userId;
+    if (filter.category) serialized.category = filter.category;
+    if (filter.eventType) serialized.eventType = filter.eventType;
+    
+    return serialized;
   }
 
   // Mock data for development

@@ -220,7 +220,6 @@ class AutoScalingService {
     const recentMetrics = metrics.slice(-10);
     const avgCpu = recentMetrics.reduce((sum, m) => sum + m.utilization.cpu, 0) / recentMetrics.length;
     const avgMemory = recentMetrics.reduce((sum, m) => sum + m.utilization.memory, 0) / recentMetrics.length;
-    const avgRequests = recentMetrics.reduce((sum, m) => sum + m.utilization.requests, 0) / recentMetrics.length;
     
     // Predict load based on trends
     const cpuTrend = this.calculateTrend(recentMetrics.map(m => m.utilization.cpu));
@@ -229,7 +228,6 @@ class AutoScalingService {
     
     const predictedCpu = Math.max(0, Math.min(100, avgCpu + (cpuTrend * timeHorizon / 60)));
     const predictedMemory = Math.max(0, Math.min(100, avgMemory + (memoryTrend * timeHorizon / 60)));
-    const predictedRequests = Math.max(0, avgRequests + (requestsTrend * timeHorizon / 60));
     
     const predictedLoad = Math.max(predictedCpu, predictedMemory);
     
@@ -572,7 +570,7 @@ class AutoScalingService {
 
   // Get resource status
   getResourceStatus(): Record<ResourceType, { instances: number; metrics?: ResourceMetrics }> {
-    const status: Record<string, any> = {};
+    const status: Record<ResourceType, { instances: number; metrics?: ResourceMetrics }> = {} as Record<ResourceType, { instances: number; metrics?: ResourceMetrics }>;
     
     for (const resourceType of this.resourceInstances.keys()) {
       status[resourceType] = {

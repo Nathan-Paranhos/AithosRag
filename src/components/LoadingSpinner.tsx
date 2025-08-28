@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Brain, Cpu } from '../utils/icons.tsx';
+import { Brain, Cpu } from 'lucide-react';
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';

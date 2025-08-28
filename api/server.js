@@ -16,7 +16,13 @@ import AuditService from './microservices/audit/auditService.js';
 import { inputSanitizer } from './middleware/inputSanitization.js';
 import { defaultUserRateLimit } from './middleware/userRateLimit.js';
 import { circuitBreakerManager } from './middleware/circuitBreaker.js';
-import { healthMonitor } from './middleware/healthMonitor.js';
+import healthMonitor from './middleware/healthMonitor.js';
+
+// Configure optimized health monitor settings
+healthMonitor.options.healthCheckInterval = 60000; // Increased from 30s to 60s
+healthMonitor.options.metricsInterval = 30000; // Increased from 10s to 30s
+healthMonitor.options.maxHistoryEntries = 100; // Reduced from 1000 to 100
+healthMonitor.options.maxAlerts = 5; // Reduced from 10 to 5
 
 // Import legacy services (for backward compatibility)
 import ModelSelector from './middleware/modelSelector.js';
@@ -27,17 +33,7 @@ import MetricsSystem from './metricsSystem.js';
 import CacheSystem from './cacheSystem.js';
 import RateLimiter from './rateLimiter.js';
 
-// Import microservices orchestrator
-import MicroservicesOrchestrator from './microservices/orchestrator.js';
-
-// Import individual microservices
-import UserService from './microservices/users/userService.js';
-import ChatService from './microservices/chat/chatService.js';
-import AnalyticsService from './microservices/analytics/analyticsService.js';
-import NotificationService from './microservices/notifications/notificationService.js';
-import FileService from './microservices/files/fileService.js';
-import AuthService from './microservices/auth/authService.js';
-import SecurityService from './microservices/security/securityService.js';
+// Simplified server without microservices
 
 // Configurar dotenv
 dotenv.config();
@@ -46,20 +42,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = parseInt(process.env.PORT) || 3001;
+const PORT = parseInt(process.env.PORT) || 3005;
 
-// Initialize microservices orchestrator
-const microservices = new MicroservicesOrchestrator({
-  gatewayPort: PORT + 1000, // 4001 for gateway
-  authPort: PORT + 1001,    // 4002 for auth
-  chatPort: PORT + 1002,    // 4003 for chat
-  analyticsPort: PORT + 1003, // 4004 for analytics
-  userPort: PORT + 1004,    // 4005 for users
-  notificationPort: PORT + 1005, // 4006 for notifications
-  filePort: PORT + 1008,    // 4009 for files
-  jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
-  environment: process.env.NODE_ENV || 'development'
-});
+// Server configuration
+const jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
 // Inicializar serviços
 const groqService = new GroqService();
@@ -97,7 +83,7 @@ app.use(helmet({
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://aithos-rag.netlify.app', 'https://your-frontend-domain.com']
-    : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+    : ['http://localhost:5173', 'http://localhost:5176', 'http://localhost:5177', 'http://localhost:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:5176', 'http://127.0.0.1:5177'],
   credentials: true,
   optionsSuccessStatus: 200
 };
@@ -300,6 +286,7 @@ app.use('/api/audit', auditRoutes);
 // Health check endpoints
 app.get('/api/health', (req, res) => {
   const healthStatus = healthMonitor.getHealthStatus();
+  const serviceStatus = fallbackSystem.getServiceStatus();
   const statusCode = healthStatus.overall === 'healthy' ? 200 : 
                     healthStatus.overall === 'degraded' ? 200 : 503;
   
@@ -311,7 +298,39 @@ app.get('/api/health', (req, res) => {
     version: process.version,
     services: healthStatus.services,
     systemMetrics: healthStatus.systemMetrics,
-    alerts: healthStatus.alerts
+    alerts: healthStatus.alerts,
+    fallbackStatus: serviceStatus
+  });
+});
+
+// Service status endpoint
+app.get('/api/health/services', (req, res) => {
+  const serviceStatus = fallbackSystem.getServiceStatus();
+  const healthStatus = healthMonitor.getHealthStatus();
+  
+  res.json({
+    success: true,
+    timestamp: new Date().toISOString(),
+    services: serviceStatus,
+    healthChecks: healthStatus.services,
+    fallbacksAvailable: Object.keys(fallbackSystem.getServiceFallbacks())
+  });
+});
+
+// Fallback system status endpoint
+app.get('/api/health/fallback', (req, res) => {
+  const fallbackStats = fallbackSystem.getFallbackStats();
+  const serviceStatus = fallbackSystem.getServiceStatus();
+  
+  res.json({
+    success: true,
+    timestamp: new Date().toISOString(),
+    fallbackSystem: {
+      enabled: fallbackStats.isEnabled,
+      modelStats: fallbackStats,
+      serviceStats: serviceStatus
+    },
+    availableFallbacks: fallbackSystem.getServiceFallbacks()
   });
 });
 
@@ -386,9 +405,112 @@ app.get('/', (req, res) => {
   });
 });
 
+// Middleware de fallback para microsserviços
+app.use('/api/auth', async (req, res, next) => {
+  try {
+    // Check if auth service is available
+    const authStatus = fallbackSystem.getServiceStatus('auth');
+    if (authStatus?.isDown) {
+      const fallbacks = fallbackSystem.getServiceFallbacks();
+      const operation = req.method.toLowerCase() === 'post' && req.path.includes('login') ? 'login' : 
+                       req.method.toLowerCase() === 'post' && req.path.includes('register') ? 'register' : 'validate';
+      
+      return res.status(503).json(fallbacks.auth[operation] || fallbacks.auth.validate);
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+});
+
+app.use('/api/chat', async (req, res, next) => {
+  try {
+    const chatStatus = fallbackSystem.getServiceStatus('chat');
+    if (chatStatus?.isDown) {
+      const fallbacks = fallbackSystem.getServiceFallbacks();
+      const operation = req.method.toLowerCase() === 'post' ? 'send' : 'history';
+      
+      return res.status(503).json(fallbacks.chat[operation]);
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+});
+
+app.use('/api/users', async (req, res, next) => {
+  try {
+    const userStatus = fallbackSystem.getServiceStatus('user');
+    if (userStatus?.isDown) {
+      const fallbacks = fallbackSystem.getServiceFallbacks();
+      const operation = req.method.toLowerCase() === 'put' || req.method.toLowerCase() === 'patch' ? 'update' : 'profile';
+      
+      return res.status(503).json(fallbacks.user[operation]);
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+});
+
+app.use('/api/notifications', async (req, res, next) => {
+  try {
+    const notificationStatus = fallbackSystem.getServiceStatus('notification');
+    if (notificationStatus?.isDown) {
+      const fallbacks = fallbackSystem.getServiceFallbacks();
+      const operation = req.method.toLowerCase() === 'post' ? 'send' : 'list';
+      
+      return res.status(503).json(fallbacks.notification[operation]);
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+});
+
+app.use('/api/files', async (req, res, next) => {
+  try {
+    const fileStatus = fallbackSystem.getServiceStatus('file');
+    if (fileStatus?.isDown) {
+      const fallbacks = fallbackSystem.getServiceFallbacks();
+      const operation = req.method.toLowerCase() === 'post' ? 'upload' : 'download';
+      
+      return res.status(503).json(fallbacks.file[operation]);
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+});
+
 // Middleware de tratamento de erros
 app.use((err, req, res, next) => {
   console.error('Erro:', err.stack);
+  
+  // Try to use fallback system for service errors
+  if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+    const serviceName = req.path.split('/')[2]; // Extract service name from path
+    if (['auth', 'chat', 'users', 'notifications', 'files', 'analytics'].includes(serviceName)) {
+      const mappedService = serviceName === 'users' ? 'user' : 
+                           serviceName === 'notifications' ? 'notification' : 
+                           serviceName === 'files' ? 'file' : serviceName;
+      
+      fallbackSystem.recordServiceFailure(mappedService, err);
+      
+      const fallbacks = fallbackSystem.getServiceFallbacks();
+      const serviceFallbacks = fallbacks[mappedService];
+      
+      if (serviceFallbacks) {
+        const operation = Object.keys(serviceFallbacks)[0]; // Use first available fallback
+        return res.status(503).json({
+          ...serviceFallbacks[operation],
+          fallback: true,
+          originalError: 'Service connection failed'
+        });
+      }
+    }
+  }
+  
   res.status(500).json({
     error: 'Algo deu errado!',
     message: process.env.NODE_ENV === 'development' ? err.message : 'Erro interno do servidor'
@@ -403,15 +525,80 @@ app.use('*', (req, res) => {
   });
 });
 
-// Limpeza automática do sistema a cada 30 minutos
+// Limpeza automática otimizada do sistema a cada 5 minutos (mais agressiva)
 setInterval(() => {
   try {
+    const memUsage = process.memoryUsage();
+    const heapUsedMB = memUsage.heapUsed / 1024 / 1024;
+    const memoryThreshold = 80; // MB
+    
+    // Limpeza básica sempre
     groqService.cleanupSystem();
-    console.log('🧹 Limpeza automática do sistema executada');
+    
+    // Limpeza agressiva se uso de memória alto
+    if (heapUsedMB > memoryThreshold) {
+      console.log(`⚠️ Alto uso de memória detectado: ${heapUsedMB.toFixed(1)}MB - Iniciando limpeza agressiva`);
+      
+      // Force garbage collection (sempre, não só em dev)
+      if (global.gc) {
+        global.gc();
+        global.gc(); // Dupla execução para limpeza mais efetiva
+      }
+      
+      // Clear require cache mais agressivamente
+      Object.keys(require.cache).forEach(key => {
+        if (key.includes('node_modules') && 
+            !key.includes('express') && 
+            !key.includes('cors') && 
+            !key.includes('helmet')) {
+          delete require.cache[key];
+        }
+      });
+      
+      // Limpar cache do sistema se disponível
+      if (cacheSystem && typeof cacheSystem.clearExpired === 'function') {
+        cacheSystem.clearExpired();
+      }
+      
+      // Limpar métricas antigas
+      if (metricsSystem && typeof metricsSystem.cleanup === 'function') {
+        metricsSystem.cleanup();
+      }
+      
+      // Limpar histórico do healthMonitor
+      if (healthMonitor && healthMonitor.clearHistory) {
+        healthMonitor.clearHistory();
+      }
+      
+      // Force additional cleanup for high memory usage
+      if (heapUsedMB > 100) { // 100MB threshold
+        // Clear all non-essential caches
+        if (cacheSystem && typeof cacheSystem.clear === 'function') {
+          cacheSystem.clear();
+        }
+        
+        // Clear orchestrator caches if available
+        if (microservices && typeof microservices.clearCache === 'function') {
+          microservices.clearCache();
+        }
+        
+        // Additional garbage collection
+        if (global.gc) {
+          setTimeout(() => global.gc(), 1000);
+        }
+      }
+    }
+    
+    const newMemUsage = process.memoryUsage();
+    const newHeapUsedMB = newMemUsage.heapUsed / 1024 / 1024;
+    const memoryReduced = heapUsedMB - newHeapUsedMB;
+    
+    console.log(`🧹 Limpeza automática executada - Heap: ${newHeapUsedMB.toFixed(1)}MB ${memoryReduced > 0 ? `(↓${memoryReduced.toFixed(1)}MB)` : ''}`);
+    
   } catch (error) {
     console.error('❌ Erro na limpeza automática:', error);
   }
-}, 30 * 60 * 1000);
+}, 5 * 60 * 1000); // Reduced from 15 to 5 minutes for more aggressive cleanup
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
@@ -461,72 +648,19 @@ async function startServer() {
     await auditService.start();
     console.log('✅ Audit service started');
     
-    // Configure health monitoring for microservices
-    healthMonitor.addService('auth-service', {
-      url: 'http://localhost:3001/health',
-      timeout: 5000
-    });
-    
-    healthMonitor.addService('chat-service', {
-      url: 'http://localhost:3002/health',
-      timeout: 5000
-    });
-    
-    healthMonitor.addService('analytics-service', {
-      url: 'http://localhost:3003/health',
-      timeout: 5000
-    });
-    
-    healthMonitor.addService('user-service', {
-      url: 'http://localhost:3004/health',
-      timeout: 5000
-    });
-    
-    healthMonitor.addService('notification-service', {
-      url: 'http://localhost:3005/health',
-      timeout: 5000
-    });
-    
-    healthMonitor.addService('file-service', {
-      url: 'http://localhost:3006/health',
-      timeout: 5000
-    });
-    
-    healthMonitor.addService('audit-service', {
-      url: 'http://localhost:3007/health',
-      timeout: 5000
-    });
-    
-    // Start microservices with detailed logging
-    console.log('📡 Starting microservices orchestrator...');
-    await microservices.start();
-    console.log('✅ Microservices started successfully');
-    
-    // Start main server
-    console.log('🌐 Starting main server...');
+    // Start simplified server
+    console.log('🌐 Starting Aithos RAG API Server...');
     const server = app.listen(PORT, () => {
-      console.log(`🌟 Aithos RAG Server running on port ${PORT}`);
-      console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔗 API Gateway: http://localhost:3000`);
-      console.log(`🎯 Main Server: http://localhost:${PORT}`);
-      console.log(`🌐 Microservices Gateway: ${microservices.getGatewayUrl()}`);
+      console.log(`🚀 Aithos RAG API Server running on port ${PORT}`);
+      console.log(`🌐 API available at: http://localhost:${PORT}`);
       console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
-      console.log(`🔑 Groq API configurada: ${process.env.GROQ_API_KEY ? '✅' : '❌'}`);
-      console.log(`🤖 Modelos disponíveis: ${groqService.getAvailableModels().length}`);
-      console.log(`⚡ Sistema de seleção inteligente: ✅`);
-      console.log('⚖️ Sistema de balanceamento de carga inicializado');
-      console.log('🔄 Sistema de fallback automático ativo');
-      console.log('🔄 Health checks automáticos configurados');
-      console.log(`🔒 Security: Enterprise-grade protection enabled`);
-      console.log(`📋 Audit: Comprehensive logging active`);
-      console.log(`⚡ Circuit Breakers: Fault tolerance enabled`);
-      console.log(`🛡️ Rate Limiting: User-based protection active`);
+      console.log(`🔑 Groq API configured: ${process.env.GROQ_API_KEY ? '✅' : '❌'}`);
       
-      console.log('\n🏗️ Microservices Architecture:');
-      const serviceStatus = microservices.getServiceStatus();
-      Object.entries(serviceStatus).forEach(([name, service]) => {
-        console.log(`  📦 ${name}: ${service.url} (${service.status})`);
-      });
+      console.log('\n🔧 Available Features:');
+      console.log(`🤖 Chat with AI models`);
+      console.log(`📄 Document processing`);
+      console.log(`🔍 RAG (Retrieval Augmented Generation)`);
+      console.log(`🛡️ Rate limiting protection`);
     });
     
     return server;

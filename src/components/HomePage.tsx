@@ -2,7 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import UpdateNotification, { OfflineBanner } from './UpdateNotification';
 import ErrorBoundary from './ErrorBoundary';
-import { usePWA } from '../hooks/usePWA';
+import usePWA from '../hooks/usePWA';
 
 // Lazy loading dos componentes para otimização
 const Navbar = lazy(() => import('./Navbar'));

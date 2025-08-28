@@ -2,7 +2,7 @@
 // Secure authentication with JWT, 2FA, social login, and enterprise features
 
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Mail, Lock, User, Building, Shield, AlertCircle, CheckCircle, Loader2, ArrowRight, Github, Chrome, Apple } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Building, Shield, AlertCircle, CheckCircle, Loader2, ArrowRight } from 'lucide-react';
 import { jwtAuthService, useAuth, LoginCredentials, RegisterData } from '../services/jwtAuthService';
 
 interface AuthenticationFormProps {
@@ -25,8 +25,8 @@ interface FormErrors {
 const AuthenticationForm: React.FC<AuthenticationFormProps> = ({
   mode: initialMode = 'login',
   onSuccess,
-  onModeChange,
-  redirectTo
+  onModeChange
+  // redirectTo will be used for post-authentication navigation
 }) => {
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [showPassword, setShowPassword] = useState(false);
@@ -48,7 +48,7 @@ const AuthenticationForm: React.FC<AuthenticationFormProps> = ({
     twoFactorCode: ''
   });
   
-  const { loading, error } = useAuth();
+  const { loading } = useAuth(); // loading state used for UI feedback
   
   useEffect(() => {
     setMode(initialMode);
@@ -175,7 +175,7 @@ const AuthenticationForm: React.FC<AuthenticationFormProps> = ({
           setErrors({ general: result.error || 'Registration failed' });
         }
       }
-    } catch (error) {
+    } catch {
       setErrors({ general: 'An unexpected error occurred. Please try again.' });
     } finally {
       setIsSubmitting(false);
@@ -191,7 +191,7 @@ const AuthenticationForm: React.FC<AuthenticationFormProps> = ({
       setTimeout(() => {
         onSuccess?.();
       }, 1000);
-    } catch (error) {
+    } catch {
       setErrors({ general: `${provider} login failed. Please try again.` });
     } finally {
       setIsSubmitting(false);
@@ -261,10 +261,10 @@ const AuthenticationForm: React.FC<AuthenticationFormProps> = ({
           )}
           
           {/* Error Message */}
-          {(errors.general || error) && (
+          {errors.general && (
             <div className="flex items-center gap-2 bg-red-500/20 border border-red-500/30 rounded-xl p-3 mb-4">
               <AlertCircle className="w-5 h-5 text-red-400" />
-              <span className="text-red-300 text-sm">{errors.general || error}</span>
+              <span className="text-red-300 text-sm">{errors.general}</span>
             </div>
           )}
           

@@ -12,7 +12,7 @@ export interface User {
   lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface Role {
@@ -28,14 +28,14 @@ export interface Permission {
   name: string;
   resource: string;
   action: string;
-  conditions?: Record<string, any>;
+  conditions?: Record<string, unknown>;
 }
 
 export interface Tenant {
   id: string;
   name: string;
   domain: string;
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
   isActive: boolean;
 }
 
@@ -188,7 +188,7 @@ class JWTAuthService {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
 
-    const { method = 'GET', body } = options;
+    const { body } = options;
     const data = body ? JSON.parse(body as string) : null;
 
     // Mock responses based on endpoint
@@ -424,37 +424,29 @@ class JWTAuthService {
 
   // Public methods
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
-    try {
-      const response = await this.mockApiCall<LoginResponse>('/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(credentials)
-      });
+    const response = await this.mockApiCall<LoginResponse>('/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(credentials)
+    });
 
-      this.storeAuthData(response.user, response.tokens);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    this.storeAuthData(response.user, response.tokens);
+    return response;
   }
 
   async register(data: RegisterData): Promise<LoginResponse> {
-    try {
-      const response = await this.mockApiCall<LoginResponse>('/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-      });
+    const response = await this.mockApiCall<LoginResponse>('/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
 
-      this.storeAuthData(response.user, response.tokens);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    this.storeAuthData(response.user, response.tokens);
+    return response;
   }
 
   async logout(): Promise<void> {
@@ -549,7 +541,7 @@ class JWTAuthService {
       if (!tokenToUse) return null;
 
       return jwtDecode<JWTPayload>(tokenToUse);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to decode JWT:', error);
       return null;
     }

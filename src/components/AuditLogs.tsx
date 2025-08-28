@@ -4,7 +4,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search,
-  Filter,
   Download,
   Eye,
   AlertTriangle,
@@ -12,24 +11,15 @@ import {
   User,
   Clock,
   MapPin,
-  Smartphone,
-  Monitor,
   Globe,
   ChevronDown,
   ChevronRight,
-  Calendar,
-  BarChart3,
   TrendingUp,
   Activity,
   Database,
   Settings,
   Lock,
-  Unlock,
-  UserPlus,
-  UserMinus,
   FileText,
-  Upload,
-  Trash2,
   Edit3,
   RefreshCw
 } from 'lucide-react';
@@ -70,13 +60,13 @@ interface AuditEvent {
     city: string;
     coordinates?: [number, number];
   };
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   sessionId?: string;
   requestId?: string;
   duration?: number;
   changes?: {
-    before: Record<string, any>;
-    after: Record<string, any>;
+    before: Record<string, unknown>;
+    after: Record<string, unknown>;
   };
   tags: string[];
 }
@@ -112,7 +102,7 @@ interface AuditStats {
 const AuditLogs: React.FC = () => {
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<AuditEvent[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<AuditEvent | null>(null);
+  const [,] = useState<AuditEvent | null>(null); // selectedEvent will be used for event details modal
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set());
@@ -131,7 +121,7 @@ const AuditLogs: React.FC = () => {
   
   const [viewMode, setViewMode] = useState<'list' | 'timeline' | 'analytics'>('list');
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const [refreshInterval, setRefreshInterval] = useState(30000);
+  const [refreshInterval] = useState(30000);
 
   // Mock data generation
   const generateMockEvents = (): AuditEvent[] => {
@@ -237,7 +227,7 @@ const AuditLogs: React.FC = () => {
         const mockEvents = generateMockEvents();
         setEvents(mockEvents);
         setError(null);
-      } catch (err) {
+      } catch {
         setError('Failed to load audit events');
       } finally {
         setLoading(false);

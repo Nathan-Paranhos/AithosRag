@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   MessageSquare,
   Search,
@@ -7,17 +7,11 @@ import {
   Upload,
   Trash2,
   Star,
-  Clock,
   User,
   Bot,
   Calendar,
-  Tag,
-  MoreVertical,
   Share2,
-  Archive,
-  Eye,
-  Copy,
-  ExternalLink
+  Archive
 } from 'lucide-react';
 
 // Types
@@ -163,7 +157,7 @@ const ConversationHistory: React.FC = () => {
     archived: null
   });
   const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  // const [viewMode, setViewMode] = useState<'list' | 'grid'>('list'); // Future use for grid/list view toggle
 
   // Filtered conversations
   const filteredConversations = useMemo(() => {
@@ -275,7 +269,7 @@ const ConversationHistory: React.FC = () => {
       <div className="bg-white border-b border-gray-200 p-6">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Histórico de Conversas</h1>
+            <h1 className="text-2xl font-bold text-white mb-2">Histórico de Conversas</h1>
             <p className="text-gray-600">Gerencie e analise suas conversas com IA</p>
           </div>
           
@@ -475,7 +469,7 @@ const ConversationHistory: React.FC = () => {
         <div className="w-1/3 border-r border-gray-200 bg-white overflow-y-auto">
           <div className="p-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">
+              <h3 className="font-semibold text-white">
                 Conversas ({filteredConversations.length})
               </h3>
             </div>
@@ -492,7 +486,7 @@ const ConversationHistory: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-medium text-gray-900 truncate flex-1 mr-2">
+                    <h4 className="font-medium text-white truncate flex-1 mr-2">
                       {conversation.title}
                     </h4>
                     <div className="flex items-center gap-1">
@@ -549,7 +543,7 @@ const ConversationHistory: React.FC = () => {
               <div className="border-b border-gray-200 p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">
+                    <h2 className="text-xl font-bold text-white mb-2">
                       {selectedConversation.title}
                     </h2>
                     <div className="flex items-center gap-4 text-sm text-gray-600">
@@ -638,7 +632,7 @@ const ConversationHistory: React.FC = () => {
                         <div className={`p-4 rounded-lg ${
                           message.role === 'user'
                             ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-900'
+                            : 'bg-gray-100 text-white'
                         }`}>
                           <div className="whitespace-pre-wrap">{message.content}</div>
                           
@@ -678,7 +672,7 @@ const ConversationHistory: React.FC = () => {
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
                 <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <h3 className="text-lg font-medium text-white mb-2">
                   Selecione uma conversa
                 </h3>
                 <p className="text-gray-600">

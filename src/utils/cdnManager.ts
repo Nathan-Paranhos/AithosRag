@@ -1,25 +1,5 @@
 // CDN Manager for optimized asset delivery
 
-// Asset optimization configuration
-const getOptimizationConfig = () => ({
-  images: {
-    webp: true,
-    avif: false,
-    quality: 85,
-    progressive: true
-  },
-  compression: {
-    gzip: true,
-    brotli: true,
-    level: 6
-  },
-  minification: {
-    css: true,
-    js: true,
-    html: true
-  }
-});
-
 interface CDNConfig {
   provider: 'cloudflare' | 'aws' | 'vercel' | 'custom';
   baseUrl: string;
@@ -163,9 +143,9 @@ class CDNManager {
       case 'aws':
         return this.applyAWSOptimizations(url, optimization);
       case 'vercel':
-        return this.applyVercelOptimizations(url, optimization);
+        return this.applyVercelOptimizations(url);
       default:
-        return this.applyCustomOptimizations(url, optimization);
+          return this.applyCustomOptimizations(url);
     }
   }
 
@@ -215,25 +195,14 @@ class CDNManager {
   }
 
   private applyVercelOptimizations(
-    url: URL,
-    optimization: AssetOptimization
+    url: URL
   ): URL {
-    // Vercel Image Optimization
-    if (optimization.images) {
-      const { quality, format, resize } = optimization.images;
-      
-      if (quality) url.searchParams.set('q', quality.toString());
-      if (format && format !== 'auto') url.searchParams.set('f', format);
-      if (resize?.width) url.searchParams.set('w', resize.width.toString());
-      if (resize?.height) url.searchParams.set('h', resize.height.toString());
-    }
-
+    // Vercel Edge Network optimizations
     return url;
   }
 
   private applyCustomOptimizations(
-    url: URL,
-    optimization: AssetOptimization
+    url: URL
   ): URL {
     // Custom optimization logic
     return url;
@@ -314,11 +283,11 @@ class CDNManager {
         case 'cloudflare':
           return await this.purgeCloudflareCache(cachePaths);
         case 'aws':
-          return await this.purgeAWSCache(cachePaths);
+          return await this.purgeAWSCache();
         case 'vercel':
-          return await this.purgeVercelCache(cachePaths);
+          return await this.purgeVercelCache();
         default:
-          return await this.purgeCustomCache(cachePaths);
+          return await this.purgeCustomCache();
       }
     } catch (error) {
       console.error('Failed to purge cache:', error);
@@ -348,20 +317,20 @@ class CDNManager {
     return response.ok;
   }
 
-  private async purgeAWSCache(paths?: string[]): Promise<boolean> {
+  private async purgeAWSCache(): Promise<boolean> {
     // AWS CloudFront invalidation
     // This would typically use AWS SDK
     console.log('AWS cache purge not implemented in browser environment');
     return true;
   }
 
-  private async purgeVercelCache(paths?: string[]): Promise<boolean> {
+  private async purgeVercelCache(): Promise<boolean> {
     // Vercel cache purge
     console.log('Vercel cache purge not implemented in browser environment');
     return true;
   }
 
-  private async purgeCustomCache(paths?: string[]): Promise<boolean> {
+  private async purgeCustomCache(): Promise<boolean> {
     // Custom cache purge logic
     return true;
   }
@@ -410,7 +379,7 @@ class CDNManager {
 export const defaultCDNConfigs: Record<string, CDNConfig> = {
   development: {
     provider: 'custom',
-    baseUrl: 'http://localhost:3000',
+    baseUrl: 'http://localhost:3005',
     cacheRules: [
       { pattern: '\\.(jpg|jpeg|png|gif|webp|avif)$', ttl: 300 },
       { pattern: '\\.(css|js)$', ttl: 60 },
@@ -463,20 +432,7 @@ export const useCDN = () => {
     return cdnManager.purgeCache(cachePaths);
   };
 
-  const prefetchAssets = async (assetPaths: string[]) => {
-    const promises = assetPaths.map(async (path) => {
-      try {
-        const link = document.createElement('link');
-        link.rel = 'prefetch';
-        link.href = cdnManager.getAssetUrl(path);
-        document.head.appendChild(link);
-      } catch (error) {
-        console.error(`Failed to prefetch asset: ${path}`, error);
-      }
-    });
-    
-    return Promise.allSettled(promises);
-  };
+
 
   const getMetrics = () => {
     return cdnManager.getPerformanceMetrics();

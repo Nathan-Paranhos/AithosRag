@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
-import { glassmorphism } from '../../design/tokens';
+// import { colors, typography } from '../../design/tokens';
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'elevated' | 'outlined' | 'glass';
@@ -118,7 +118,7 @@ const CardTitle = React.forwardRef<HTMLHeadingElement, CardTitleProps>(
       <Component
         ref={ref}
         className={cn(
-          'text-lg font-semibold leading-none tracking-tight text-gray-900 dark:text-gray-100',
+          'text-lg font-semibold leading-none tracking-tight text-white dark:text-gray-100',
           className
         )}
         {...props}
@@ -132,9 +132,7 @@ const CardTitle = React.forwardRef<HTMLHeadingElement, CardTitleProps>(
 CardTitle.displayName = 'CardTitle';
 
 // Card Description Component
-export interface CardDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement> {}
-
-const CardDescription = React.forwardRef<HTMLParagraphElement, CardDescriptionProps>(
+const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
   ({ className, children, ...props }, ref) => {
     return (
       <p

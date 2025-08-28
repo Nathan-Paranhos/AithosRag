@@ -92,7 +92,7 @@ export const PWASettings: React.FC<PWASettingsProps> = ({ className }) => {
     }
   };
 
-  const saveSettings = (type: string, settings: any) => {
+  const saveSettings = (type: string, settings: Record<string, unknown>) => {
     try {
       localStorage.setItem(`pwa-${type}-settings`, JSON.stringify(settings));
     } catch (error) {

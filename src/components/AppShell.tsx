@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Home, MessageSquare, Settings, User, Bell, Search, Plus, Smartphone } from 'lucide-react';
+import { Menu, X, Home, MessageSquare, User, Bell, Search, Plus, Smartphone } from 'lucide-react';
 import { cn } from '../utils/cn';
 import PWASettings from './PWASettings';
 
@@ -64,7 +64,7 @@ const SplashScreen: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   }, [onComplete]);
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-brand-dark-blue flex items-center justify-center z-50">
       <div className="text-center">
         {/* App Logo */}
         <div className="w-24 h-24 mx-auto mb-6 bg-white/20 rounded-3xl flex items-center justify-center backdrop-blur-sm">
@@ -145,7 +145,7 @@ const TopBar: React.FC<{
         {/* User Avatar */}
         {user && (
           <div className="flex items-center gap-2 ml-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
+            <div className="w-8 h-8 rounded-full bg-brand-main-blue flex items-center justify-center text-white text-sm font-medium">
               {user.avatar ? (
                 <img src={user.avatar} alt={user.name} className="w-full h-full rounded-full object-cover" />
               ) : (
@@ -307,7 +307,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   children,
   className,
   showSplash = true,
-  splashDuration = 2000,
+  // splashDuration = 2000,
   enableBottomNav = true,
   enableTopBar = true,
   enableSidebar = true,
@@ -321,8 +321,9 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [navItems, setNavItems] = useState(defaultNavItems);
   const [showSettings, setShowSettings] = useState(showPWASettings);
-  const [isInstallable, setIsInstallable] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [, setIsInstallable] = useState(false); // PWA install prompt availability - will be used for install button
+  // const [deferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  // isInstallable and deferredPrompt used in handleInstallApp
 
   // Update nav items with notification badges
   useEffect(() => {
@@ -374,17 +375,18 @@ export const AppShell: React.FC<AppShellProps> = ({
     }
   };
 
-  const handleInstallApp = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        setIsInstallable(false);
-        setDeferredPrompt(null);
-      }
-    }
-  };
+  // const handleInstallApp = useCallback(async () => { // PWA install functionality - will be used when install button is implemented
+  //   if (deferredPrompt) {
+  //     deferredPrompt.prompt();
+  //     const { outcome } = await deferredPrompt.userChoice;
+  //     
+  //     if (outcome === 'accepted') {
+  //       setIsInstallable(false);
+  //       setDeferredPrompt(null);
+  //     }
+  //   }
+  // }, [deferredPrompt, setIsInstallable]);
+  // handleInstallApp function available for future PWA install feature
 
   const handleSearch = () => {
     // Implement search functionality
@@ -396,7 +398,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   }
 
   return (
-    <div className={cn("min-h-screen bg-gray-50 dark:bg-gray-950 flex", className)}>
+    <div className={cn("min-h-screen bg-white dark:bg-gray-950 flex", className)}>
       {/* Sidebar */}
       {enableSidebar && (
         <Sidebar

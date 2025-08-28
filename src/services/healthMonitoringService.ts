@@ -24,7 +24,7 @@ interface HealthCheck {
 interface HealthCheckResult {
   status: HealthStatus;
   message: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   duration: number;
   timestamp: number;
   error?: Error;
@@ -103,7 +103,7 @@ interface Alert {
   acknowledged: boolean;
   resolved: boolean;
   resolvedAt?: number;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   tags: string[];
 }
 
@@ -579,17 +579,13 @@ class HealthMonitoringService {
       description: 'Check if main API endpoint is responding',
       category: 'api',
       check: async () => {
-        try {
-          // Simulate API check
-          const isHealthy = Math.random() > 0.1; // 90% success rate
-          return {
-            status: isHealthy ? 'healthy' : 'unhealthy',
-            message: isHealthy ? 'API is responding normally' : 'API is not responding',
-            data: { endpoint: '/api/health', responseTime: Math.random() * 100 }
-          } as HealthCheckResult;
-        } catch (error) {
-          throw error;
-        }
+        // Simulate API check
+        const isHealthy = Math.random() > 0.1; // 90% success rate
+        return {
+          status: isHealthy ? 'healthy' : 'unhealthy',
+          message: isHealthy ? 'API is responding normally' : 'API is not responding',
+          data: { endpoint: '/api/health', responseTime: Math.random() * 100 }
+        } as HealthCheckResult;
       },
       interval: 30000,
       timeout: 5000,

@@ -17,7 +17,7 @@ interface KPIMetric {
   trendPercentage: number;
   target?: number;
   category: 'revenue' | 'users' | 'performance' | 'engagement' | 'conversion';
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<{ className?: string; size?: number; }>;
   color: string;
 }
 
@@ -27,7 +27,7 @@ interface ChartData {
   previousValue?: number;
   timestamp?: number;
   category?: string;
-  [key: string]: any;
+  [key: string]: string | number | undefined;
 }
 
 interface RealtimeMetric {
@@ -511,7 +511,7 @@ const EnterpriseDashboard: React.FC = () => {
                   borderRadius: '8px',
                   color: '#fff'
                 }}
-                formatter={(value: any) => [`$${(value / 1000000).toFixed(2)}M`, 'Revenue']}
+                formatter={(value: number) => [`$${(value / 1000000).toFixed(2)}M`, 'Revenue']}
               />
               <Area 
                 type="monotone" 
@@ -604,7 +604,7 @@ const EnterpriseDashboard: React.FC = () => {
                   borderRadius: '8px',
                   color: '#fff'
                 }}
-                formatter={(value: any) => [`${value}%`, 'Share']}
+                formatter={(value: number) => [`${value}%`, 'Share']}
               />
               <Legend />
             </PieChart>

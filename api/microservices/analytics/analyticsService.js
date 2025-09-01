@@ -16,14 +16,13 @@ class AnalyticsService extends EventEmitter {
       dataRetentionDays: options.dataRetentionDays || 90,
       rateLimitWindow: options.rateLimitWindow || 60 * 1000,
       rateLimitMax: options.rateLimitMax || 100,
-      metricsInterval: options.metricsInterval || 60000, // 1 minute
+      metricsInterval: options.metricsInterval || 60000, 
       ...options
     };
 
     this.app = express();
     this.server = null;
     
-    // In-memory storage (in production, use a time-series database like InfluxDB)
     this.metrics = new Map();
     this.events = [];
     this.userSessions = new Map();
@@ -31,7 +30,6 @@ class AnalyticsService extends EventEmitter {
     this.apiMetrics = new Map();
     this.errorLogs = [];
     
-    // Real-time metrics
     this.realtimeMetrics = {
       activeUsers: 0,
       requestsPerMinute: 0,
@@ -47,7 +45,6 @@ class AnalyticsService extends EventEmitter {
   }
 
   setupMiddleware() {
-    // Security middleware
     this.app.use(helmet());
     this.app.use(cors({
       origin: process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -70,13 +67,11 @@ class AnalyticsService extends EventEmitter {
 
     this.app.use('/analytics', analyticsLimiter);
 
-    // Request logging and metrics collection
     this.app.use((req, res, next) => {
       const startTime = Date.now();
       
-      console.log(`📊 Analytics Service: ${req.method} ${req.path} - ${req.ip}`);
+      console.log(`Analytics Service: ${req.method} ${req.path} - ${req.ip}`);
       
-      // Track API metrics
       const endpoint = `${req.method} ${req.path}`;
       if (!this.apiMetrics.has(endpoint)) {
         this.apiMetrics.set(endpoint, {
@@ -91,7 +86,6 @@ class AnalyticsService extends EventEmitter {
       metric.requests++;
       metric.lastAccessed = new Date().toISOString();
       
-      // Override res.end to capture response time
       const originalEnd = res.end;
       res.end = function(...args) {
         const responseTime = Date.now() - startTime;
@@ -107,7 +101,6 @@ class AnalyticsService extends EventEmitter {
       next();
     });
 
-    // Auth middleware (simplified)
     this.app.use((req, res, next) => {
       const authHeader = req.headers['authorization'];
       if (authHeader) {
@@ -123,7 +116,6 @@ class AnalyticsService extends EventEmitter {
   }
 
   setupRoutes() {
-    // Health check
     this.app.get('/health', (req, res) => {
       res.json({
         status: 'healthy',
@@ -139,7 +131,6 @@ class AnalyticsService extends EventEmitter {
       });
     });
 
-    // Track event
     this.app.post('/analytics/events', [
       body('event').isString().isLength({ min: 1, max: 100 }),
       body('category').optional().isString().isLength({ max: 50 }),
@@ -148,13 +139,10 @@ class AnalyticsService extends EventEmitter {
       body('sessionId').optional().isString()
     ], this.trackEvent.bind(this));
 
-    // Get dashboard metrics
     this.app.get('/analytics/dashboard', this.getDashboardMetrics.bind(this));
 
-    // Get real-time metrics
     this.app.get('/analytics/realtime', this.getRealtimeMetrics.bind(this));
 
-    // Get user analytics
     this.app.get('/analytics/users', [
       query('startDate').optional().isISO8601(),
       query('endDate').optional().isISO8601(),

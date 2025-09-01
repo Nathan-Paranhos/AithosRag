@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Menu, X, Home, MessageSquare, User, Bell, Search, Plus, Smartphone } from 'lucide-react';
 import { cn } from '../utils/cn';
 import PWASettings from './PWASettings';
+import { ConnectivityIndicator } from './ConnectivityIndicator';
+import { CriticalErrorBoundary, ComponentErrorBoundary } from './ErrorBoundary';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -398,54 +400,69 @@ export const AppShell: React.FC<AppShellProps> = ({
   }
 
   return (
-    <div className={cn("min-h-screen bg-white dark:bg-gray-950 flex", className)}>
-      {/* Sidebar */}
-      {enableSidebar && (
-        <Sidebar
-          isOpen={sidebarOpen}
-          onClose={handleSidebarClose}
-          navItems={navItems}
-          currentRoute={currentRoute}
-          onNavigate={handleNavigate}
-        />
-      )}
-      
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Bar */}
-        {enableTopBar && (
-          <TopBar
-            onMenuToggle={handleMenuToggle}
-            user={user}
-            notifications={notifications}
-            onSearch={handleSearch}
-          />
+    <CriticalErrorBoundary>
+      <div className={cn("min-h-screen bg-white dark:bg-gray-950 flex", className)}>
+        {/* Sidebar */}
+        {enableSidebar && (
+          <ComponentErrorBoundary>
+            <Sidebar
+              isOpen={sidebarOpen}
+              onClose={handleSidebarClose}
+              navItems={navItems}
+              currentRoute={currentRoute}
+              onNavigate={handleNavigate}
+            />
+          </ComponentErrorBoundary>
         )}
         
-        {/* Content Area */}
-        <main className={cn(
-          "flex-1 overflow-auto",
-          enableBottomNav && "pb-16 md:pb-0"
-        )}>
-          {showSettings ? (
-            <div className="p-6">
-              <PWASettings />
-            </div>
-          ) : (
-            children
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Top Bar */}
+          {enableTopBar && (
+            <ComponentErrorBoundary>
+              <TopBar
+                onMenuToggle={handleMenuToggle}
+                user={user}
+                notifications={notifications}
+                onSearch={handleSearch}
+              />
+            </ComponentErrorBoundary>
           )}
-        </main>
-        
-        {/* Bottom Navigation */}
-        {enableBottomNav && (
-          <BottomNavigation
-            navItems={navItems}
-            currentRoute={currentRoute}
-            onNavigate={handleNavigate}
-          />
-        )}
+          
+          {/* Content Area */}
+          <main className={cn(
+            "flex-1 overflow-auto",
+            enableBottomNav && "pb-16 md:pb-0"
+          )}>
+            {showSettings ? (
+              <ComponentErrorBoundary>
+                <div className="p-6">
+                  <PWASettings />
+                </div>
+              </ComponentErrorBoundary>
+            ) : (
+              children
+            )}
+          </main>
+          
+          {/* Bottom Navigation */}
+          {enableBottomNav && (
+            <ComponentErrorBoundary>
+              <BottomNavigation
+                navItems={navItems}
+                currentRoute={currentRoute}
+                onNavigate={handleNavigate}
+              />
+            </ComponentErrorBoundary>
+          )}
+          
+          {/* Connectivity Indicator */}
+          <ComponentErrorBoundary>
+            <ConnectivityIndicator />
+          </ComponentErrorBoundary>
+        </div>
       </div>
-    </div>
+    </CriticalErrorBoundary>
   );
 };
 

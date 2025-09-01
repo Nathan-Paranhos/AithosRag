@@ -15,8 +15,8 @@ class ChatService extends EventEmitter {
       port: options.port || 3002,
       maxMessageLength: options.maxMessageLength || 10000,
       maxConversationHistory: options.maxConversationHistory || 100,
-      rateLimitWindow: options.rateLimitWindow || 60 * 1000, // 1 minute
-      rateLimitMax: options.rateLimitMax || 30, // 30 requests per minute
+      rateLimitWindow: options.rateLimitWindow || 60 * 1000, 
+      rateLimitMax: options.rateLimitMax || 30, 
       websocketPort: options.websocketPort || 3010,
       ...options
     };
@@ -26,7 +26,6 @@ class ChatService extends EventEmitter {
     this.wsServer = null;
     this.wss = null;
     
-    // In-memory storage (in production, use a database)
     this.conversations = new Map();
     this.messages = new Map();
     this.activeConnections = new Map();
@@ -38,7 +37,6 @@ class ChatService extends EventEmitter {
   }
 
   setupMiddleware() {
-    // Security middleware
     this.app.use(helmet());
     this.app.use(cors({
       origin: process.env.FRONTEND_URL || 'http://localhost:5173',

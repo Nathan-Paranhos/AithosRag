@@ -89,28 +89,26 @@ export const getIconClassName = (size: keyof typeof iconSizes = 'md', color?: ke
   return `${sizeClass} ${colorClass}`.trim();
 };
 
+import React from 'react';
+import { Loader2, CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
+
 // Common icon combinations
-export const LoadingIcon = ({ className = '', size = 'md' }: { className?: string; size?: keyof typeof iconSizes }) => {
-  const { Loader2 } = require('lucide-react');
-  return <Loader2 className={`animate-spin ${getIconClassName(size)} ${className}`} />;
+export const LoadingIcon: React.FC<{ className?: string; size?: keyof typeof iconSizes }> = ({ className = '', size = 'md' }) => {
+  return React.createElement(Loader2, { className: `animate-spin ${getIconClassName(size)} ${className}` });
 };
 
-export const SuccessIcon = ({ className = '', size = 'md' }: { className?: string; size?: keyof typeof iconSizes }) => {
-  const { CheckCircle } = require('lucide-react');
-  return <CheckCircle className={`${getIconClassName(size, 'success')} ${className}`} />;
+export const SuccessIcon: React.FC<{ className?: string; size?: keyof typeof iconSizes }> = ({ className = '', size = 'md' }) => {
+  return React.createElement(CheckCircle, { className: `${getIconClassName(size, 'success')} ${className}` });
 };
 
-export const ErrorIcon = ({ className = '', size = 'md' }: { className?: string; size?: keyof typeof iconSizes }) => {
-  const { XCircle } = require('lucide-react');
-  return <XCircle className={`${getIconClassName(size, 'error')} ${className}`} />;
+export const ErrorIcon: React.FC<{ className?: string; size?: keyof typeof iconSizes }> = ({ className = '', size = 'md' }) => {
+  return React.createElement(XCircle, { className: `${getIconClassName(size, 'error')} ${className}` });
 };
 
-export const WarningIcon = ({ className = '', size = 'md' }: { className?: string; size?: keyof typeof iconSizes }) => {
-  const { AlertTriangle } = require('lucide-react');
-  return <AlertTriangle className={`${getIconClassName(size, 'warning')} ${className}`} />;
+export const WarningIcon: React.FC<{ className?: string; size?: keyof typeof iconSizes }> = ({ className = '', size = 'md' }) => {
+  return React.createElement(AlertTriangle, { className: `${getIconClassName(size, 'warning')} ${className}` });
 };
 
-export const InfoIcon = ({ className = '', size = 'md' }: { className?: string; size?: keyof typeof iconSizes }) => {
-  const { Info } = require('lucide-react');
-  return <Info className={`${getIconClassName(size, 'info')} ${className}`} />;
+export const InfoIcon: React.FC<{ className?: string; size?: keyof typeof iconSizes }> = ({ className = '', size = 'md' }) => {
+  return React.createElement(Info, { className: `${getIconClassName(size, 'info')} ${className}` });
 };

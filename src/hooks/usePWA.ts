@@ -10,7 +10,6 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 interface PWAState {
-  isOnline: boolean;
   isInstalled: boolean;
   canInstall: boolean;
   notificationPermission: NotificationPermission;
@@ -22,7 +21,6 @@ interface PWAState {
 }
 
 const usePWA = (): PWAState => {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isInstalled, setIsInstalled] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
@@ -48,19 +46,7 @@ const usePWA = (): PWAState => {
     return () => mediaQuery.removeEventListener('change', checkInstalled);
   }, []);
 
-  // Handle online/offline status
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+  // Online/offline status is now handled by the connectivity system
 
   // Handle install prompt
   useEffect(() => {
@@ -227,7 +213,6 @@ const usePWA = (): PWAState => {
   }, []);
 
   return {
-    isOnline,
     isInstalled,
     canInstall,
     notificationPermission,

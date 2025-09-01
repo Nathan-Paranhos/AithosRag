@@ -119,13 +119,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const register = async (data: RegisterData) => {
-    try {
-      const result = await jwtAuthService.register(data);
-      setUser(result.user);
-      setTokens(result.tokens);
-    } catch (error) {
-      throw error;
-    }
+    const result = await jwtAuthService.register(data);
+    setUser(result.user);
+    setTokens(result.tokens);
   };
 
   const logout = async () => {
@@ -325,12 +321,8 @@ const JWTAuthSystem: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    try {
-      await logout();
-      setSuccess('Logout realizado com sucesso!');
-    } catch {
-      setError('Erro no logout');
-    }
+    await logout();
+    setSuccess('Logout realizado com sucesso!');
   };
 
   const getEventIcon = (type: SecurityEvent['type']) => {

@@ -9,6 +9,14 @@ import MobileNavigation from './components/MobileNavigation';
 import PushNotifications from './components/PushNotifications';
 import PullToRefresh from './components/PullToRefresh';
 import AppRouter from './components/AppRouter';
+import PerformanceMonitor from './components/PerformanceMonitor';
+import { ConnectivityIndicator, ConnectivityStatusBar } from './components/ConnectivityIndicator';
+import { useConnectivity } from './hooks/useConnectivity';
+import { CriticalErrorBoundary, useErrorHandler } from './components/ErrorBoundary';
+import { performanceMonitor } from './utils/performance';
+import { logger } from './utils/logger';
+import { preloader, preloadUtils } from './utils/preloader';
+import { cacheManager } from './utils/cache';
 
 // PWA App Content Component
 const AppContent: React.FC = () => {
@@ -19,11 +27,34 @@ const AppContent: React.FC = () => {
   
   const pwaHook = usePWA();
   const {
-    isOnline,
     isInstalled,
     canInstall,
     installPWA
   } = pwaHook;
+  
+  // Use new connectivity system
+  const connectivity = useConnectivity();
+  const { captureError } = useErrorHandler();
+
+  // Initialize performance monitoring and optimization systems
+  useEffect(() => {
+    performanceMonitor.startSession();
+    
+    // Initialize preloading system
+    preloadUtils.preloadCritical();
+    
+    // Preload images in viewport
+    const timer = setTimeout(() => {
+      preloadUtils.preloadImagesInViewport();
+    }, 1000);
+    
+    return () => {
+      performanceMonitor.endSession();
+      clearTimeout(timer);
+      // Cleanup cache manager
+      cacheManager.cleanupAll();
+    };
+  }, []);
 
   // Detect mobile device
   useEffect(() => {
@@ -41,14 +72,17 @@ const AppContent: React.FC = () => {
     const initPWA = async () => {
       try {
         // PWA features are handled by the usePWA hook
-        console.log('PWA initialized');
+        logger.info('PWA initialized', { isMobile, isInstalled });
+        performanceMonitor.incrementCounter('pwa_initialization_success');
       } catch (error) {
-        console.error('PWA initialization failed:', error);
+        logger.error('PWA initialization failed', { error });
+        captureError(error as Error, 'PWA initialization');
+        performanceMonitor.incrementCounter('pwa_initialization_error');
       }
     };
     
     initPWA();
-  }, [isMobile, pwaHook]);
+  }, [isMobile, pwaHook, isInstalled, captureError]);
 
   // Global gesture handlers (temporarily disabled to fix hook error)
   // const gestureHandlers = useGestures({
@@ -68,17 +102,25 @@ const AppContent: React.FC = () => {
   // Handle pull-to-refresh
   const handleRefresh = async () => {
     setRefreshing(true);
+    const endTiming = performanceMonitor.startTiming('pull_to_refresh');
     
     try {
+      logger.info('Pull to refresh initiated');
+      
       // Simulate refresh delay
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Refresh current page data
       window.location.reload();
+      
+      performanceMonitor.incrementCounter('pull_to_refresh_success');
     } catch (error) {
-      console.error('Refresh failed:', error);
+      logger.error('Refresh failed', { error });
+      captureError(error as Error, 'Pull to refresh');
+      performanceMonitor.incrementCounter('pull_to_refresh_error');
     } finally {
       setRefreshing(false);
+      endTiming();
     }
   };
 
@@ -116,14 +158,8 @@ const AppContent: React.FC = () => {
         </div>
       )}
 
-      {/* Offline Indicator */}
-      {!isOnline && (
-        <div className="fixed top-0 left-0 right-0 z-40 bg-red-600 text-white p-2 text-center">
-          <span className="text-sm font-medium">
-            You're offline. Some features may be limited.
-          </span>
-        </div>
-      )}
+      {/* Connectivity Status Bar */}
+      <ConnectivityStatusBar className="z-40" />
 
       {/* Header with PWA Controls */}
       <header className="fixed top-0 left-0 right-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-b border-gray-200/50 dark:border-gray-700/50">
@@ -169,6 +205,13 @@ const AppContent: React.FC = () => {
         />
       )}
 
+      {/* Connectivity Indicator */}
+      <ConnectivityIndicator 
+        position="top-right"
+        showDetails={true}
+        className="z-50"
+      />
+      
       {/* Toast Notifications */}
       <Toaster
         position={isMobile ? 'top-center' : 'bottom-right'}
@@ -180,17 +223,59 @@ const AppContent: React.FC = () => {
           }
         }}
       />
+      
+      {/* Performance Monitor (Development Only) */}
+      <PerformanceMonitor 
+        enabled={process.env.NODE_ENV === 'development'}
+        position="bottom-left"
+        compact={isMobile}
+      />
     </div>
   );
 };
 
 function App() {
+  useEffect(() => {
+    // Initialize global error handling
+    const handleUnhandledError = (event: ErrorEvent) => {
+      logger.critical(
+        'Unhandled error',
+        'Global',
+        {
+          message: event.message,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno
+        },
+        event.error
+      );
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      logger.critical(
+        'Unhandled promise rejection',
+        'Global',
+        { reason: event.reason }
+      );
+    };
+
+    window.addEventListener('error', handleUnhandledError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', handleUnhandledError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
   return (
-    <ThemeProvider defaultTheme="light" storageKey="aithos-theme">
-      <Router>
-        <AppContent />
-      </Router>
-    </ThemeProvider>
+    <CriticalErrorBoundary>
+      <ThemeProvider defaultTheme="light" storageKey="aithos-theme">
+        <Router>
+          <AppContent />
+        </Router>
+      </ThemeProvider>
+    </CriticalErrorBoundary>
   );
 }
 

@@ -2,7 +2,7 @@
 // Tenant management, isolation, resource allocation, billing
 
 import React, { useState, useEffect } from 'react';
-import { Building2, DollarSign, AlertTriangle, CheckCircle, TrendingUp, TrendingDown, Search } from 'lucide-react';
+import { Building2, DollarSign, AlertTriangle, CheckCircle, TrendingUp, TrendingDown, Search, RefreshCw, Download, Eye, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '../services/jwtAuthService';
 
 interface Tenant {
@@ -225,7 +225,7 @@ const MultiTenantManager: React.FC = () => {
         maxApiCalls: 500000,
         customBranding: true,
         ssoEnabled: true,
-        auditLogsRetention: 2555,
+        auditLogsRetention: 365,
         backupFrequency: 'daily'
       },
       usage: {
@@ -259,7 +259,7 @@ const MultiTenantManager: React.FC = () => {
         customDomain: true
       }
     }
-  ];
+  ]);
   
   const alerts: TenantAlert[] = [
     {
@@ -295,7 +295,7 @@ const MultiTenantManager: React.FC = () => {
       resolved: true,
       autoResolvable: true
     }
-  ]);
+  ];
   
   const resourceUsage: ResourceUsage[] = [
     {
@@ -331,7 +331,7 @@ const MultiTenantManager: React.FC = () => {
       cost: 9999,
       timestamp: Date.now()
     }
-  ]);
+  ];
   
   const handleRefresh = async () => {
     setLoading(true);

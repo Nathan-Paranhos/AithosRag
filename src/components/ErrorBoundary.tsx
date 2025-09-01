@@ -1,27 +1,27 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home, Bug, Send } from 'lucide-react';
-import { performanceMonitor, memoryManager } from '../utils/performanceOptimizations';
+import { AlertTriangle, RefreshCw, Home, Bug, Wifi, WifiOff } from 'lucide-react';
+import Logger, { logger } from '../utils/logger';
+import { useConnectivity } from '../hooks/useConnectivity';
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
+  level?: 'page' | 'component' | 'critical';
   showDetails?: boolean;
-  autoRecover?: boolean;
-  maxRetries?: number;
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
+  errorId: string;
   retryCount: number;
-  isRecovering: boolean;
 }
 
-class ErrorBoundary extends Component<Props, State> {
-  private retryTimeoutId: NodeJS.Timeout | null = null;
-  private errorReportSent = false;
+class ErrorBoundaryClass extends Component<Props, State> {
+  private logger: Logger;
+  private maxRetries = 3;
 
   constructor(props: Props) {
     super(props);
@@ -29,286 +29,372 @@ class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
-      retryCount: 0,
-      isRecovering: false
+      errorId: '',
+      retryCount: 0
     };
+    this.logger = logger;
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
     return {
       hasError: true,
-      error
+      error,
+      errorId: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    this.setState({
-      error,
-      errorInfo
-    });
-
+    const { onError, level = 'component' } = this.props;
+    
     // Log do erro
-    this.logError(error, errorInfo);
+    this.logger.componentError(
+      this.constructor.name,
+      error,
+      {
+        errorInfo,
+        level,
+        props: this.props,
+        timestamp: new Date().toISOString()
+      }
+    );
 
     // Callback personalizado
-    if (this.props.onError) {
-      this.props.onError(error, errorInfo);
+    if (onError) {
+      onError(error, errorInfo);
     }
 
-    // Auto-recuperação
-    if (this.props.autoRecover && this.state.retryCount < (this.props.maxRetries || 3)) {
-      this.scheduleRetry();
-    }
+    // Atualiza estado com informações do erro
+    this.setState({
+      errorInfo,
+      error
+    });
 
-    // Limpeza de memória
-    memoryManager.cleanup();
+    // Reporta erro crítico
+    if (level === 'critical') {
+      this.logger.critical('Critical component error', {
+        error: error.message,
+        stack: error.stack,
+        componentStack: errorInfo.componentStack
+      });
+    }
   }
 
-  private logError = (error: Error, errorInfo: ErrorInfo) => {
-    const errorData = {
-      message: error.message,
-      stack: error.stack,
-      componentStack: errorInfo.componentStack,
-      timestamp: new Date().toISOString(),
-      userAgent: navigator.userAgent,
-      url: window.location.href,
-      retryCount: this.state.retryCount
-    };
-
-    // Log local
-    console.error('ErrorBoundary caught an error:', errorData);
-
-    // Registrar no performance monitor
-    performanceMonitor.recordApiCall(performance.now(), false);
-
-    // Enviar relatório de erro (apenas uma vez por erro)
-    if (!this.errorReportSent) {
-      this.sendErrorReport(errorData);
-      this.errorReportSent = true;
-    }
-  };
-
-  private sendErrorReport = async (errorData: { error: Error; errorInfo: React.ErrorInfo; timestamp: string; url: string; userAgent: string }) => {
-    try {
-      // Em produção, enviar para serviço de monitoramento
-      // await fetch('/api/error-report', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(errorData)
-      // });
-      
-      console.log('Error report would be sent:', errorData);
-    } catch (reportError) {
-      console.error('Failed to send error report:', reportError);
-    }
-  };
-
-  private scheduleRetry = () => {
-    this.setState({ isRecovering: true });
+  handleRetry = () => {
+    const { retryCount } = this.state;
     
-    this.retryTimeoutId = setTimeout(() => {
-      this.setState(prevState => ({
+    if (retryCount < this.maxRetries) {
+      this.logger.info('Retrying component render', {
+        errorId: this.state.errorId,
+        retryCount: retryCount + 1
+      });
+      
+      this.setState({
         hasError: false,
         error: null,
         errorInfo: null,
-        retryCount: prevState.retryCount + 1,
-        isRecovering: false
-      }));
-      this.errorReportSent = false;
-    }, 2000 + (this.state.retryCount * 1000)); // Backoff exponencial
-  };
-
-  private handleRetry = () => {
-    if (this.retryTimeoutId) {
-      clearTimeout(this.retryTimeoutId);
+        retryCount: retryCount + 1
+      });
     }
-    this.scheduleRetry();
   };
 
-  private handleReload = () => {
+  handleReload = () => {
+    this.logger.info('Reloading page due to error', {
+      errorId: this.state.errorId
+    });
     window.location.reload();
   };
 
-  private handleGoHome = () => {
+  handleGoHome = () => {
+    this.logger.info('Navigating to home due to error', {
+      errorId: this.state.errorId
+    });
     window.location.href = '/';
   };
 
-  componentWillUnmount() {
-    if (this.retryTimeoutId) {
-      clearTimeout(this.retryTimeoutId);
-    }
-  }
-
   render() {
-    if (this.state.hasError) {
+    const { hasError, error, errorInfo, errorId, retryCount } = this.state;
+    const { children, fallback, level = 'component', showDetails = false } = this.props;
+
+    if (hasError && error) {
       // Fallback customizado
-      if (this.props.fallback) {
-        return this.props.fallback;
+      if (fallback) {
+        return fallback;
       }
 
-      // UI de erro padrão
+      // Fallback baseado no nível
       return (
-        <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl p-8 max-w-lg w-full">
-            {/* Ícone e título */}
-            <div className="text-center mb-6">
-              <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                <AlertTriangle className="w-8 h-8 text-red-600" />
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                Oops! Algo deu errado
-              </h1>
-              <p className="text-gray-600">
-                Encontramos um erro inesperado. Não se preocupe, estamos trabalhando para resolver.
-              </p>
-            </div>
-
-            {/* Status de recuperação */}
-            {this.state.isRecovering && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <div className="flex items-center">
-                  <RefreshCw className="w-5 h-5 text-blue-600 animate-spin mr-3" />
-                  <div>
-                    <p className="text-blue-800 font-medium">Tentando recuperar...</p>
-                    <p className="text-blue-600 text-sm">Tentativa {this.state.retryCount + 1} de {this.props.maxRetries || 3}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Detalhes do erro (se habilitado) */}
-            {this.props.showDetails && this.state.error && (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-                <details className="cursor-pointer">
-                  <summary className="flex items-center text-gray-700 font-medium mb-2">
-                    <Bug className="w-4 h-4 mr-2" />
-                    Detalhes técnicos
-                  </summary>
-                  <div className="text-sm text-gray-600 space-y-2">
-                    <div>
-                      <strong>Erro:</strong> {this.state.error.message}
-                    </div>
-                    {this.state.error.stack && (
-                      <div>
-                        <strong>Stack:</strong>
-                        <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-x-auto">
-                          {this.state.error.stack}
-                        </pre>
-                      </div>
-                    )}
-                  </div>
-                </details>
-              </div>
-            )}
-
-            {/* Ações */}
-            <div className="space-y-3">
-              <div className="flex space-x-3">
-                <button
-                  onClick={this.handleRetry}
-                  disabled={this.state.isRecovering}
-                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                >
-                  <RefreshCw className={`w-4 h-4 mr-2 ${this.state.isRecovering ? 'animate-spin' : ''}`} />
-                  {this.state.isRecovering ? 'Recuperando...' : 'Tentar Novamente'}
-                </button>
-                
-                <button
-                  onClick={this.handleReload}
-                  className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Recarregar
-                </button>
-              </div>
-              
-              <button
-                onClick={this.handleGoHome}
-                className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
-              >
-                <Home className="w-4 h-4 mr-2" />
-                Voltar ao Início
-              </button>
-            </div>
-
-            {/* Informações adicionais */}
-            <div className="mt-6 pt-6 border-t border-gray-200 text-center">
-              <p className="text-sm text-gray-500 mb-3">
-                Se o problema persistir, entre em contato conosco.
-              </p>
-              <button
-                onClick={() => {
-                  const subject = encodeURIComponent('Erro na aplicação Aithos RAG');
-                  const body = encodeURIComponent(
-                    `Detalhes do erro:\n\n` +
-                    `Mensagem: ${this.state.error?.message || 'N/A'}\n` +
-                    `Timestamp: ${new Date().toISOString()}\n` +
-                    `URL: ${window.location.href}\n` +
-                    `User Agent: ${navigator.userAgent}`
-                  );
-                  window.open(`mailto:support@aithos.com?subject=${subject}&body=${body}`);
-                }}
-                className="text-blue-600 hover:text-blue-800 text-sm flex items-center justify-center transition-colors"
-              >
-                <Send className="w-4 h-4 mr-1" />
-                Reportar Erro
-              </button>
-            </div>
-          </div>
-        </div>
+        <ErrorFallback
+          error={error}
+          errorInfo={errorInfo}
+          errorId={errorId}
+          level={level}
+          retryCount={retryCount}
+          maxRetries={this.maxRetries}
+          showDetails={showDetails}
+          onRetry={this.handleRetry}
+          onReload={this.handleReload}
+          onGoHome={this.handleGoHome}
+        />
       );
     }
 
-    return this.props.children;
+    return children;
   }
 }
 
-export default ErrorBoundary;
+// Componente de fallback com conectividade
+interface ErrorFallbackProps {
+  error: Error;
+  errorInfo: ErrorInfo | null;
+  errorId: string;
+  level: 'page' | 'component' | 'critical';
+  retryCount: number;
+  maxRetries: number;
+  showDetails: boolean;
+  onRetry: () => void;
+  onReload: () => void;
+  onGoHome: () => void;
+}
 
-// Hook para capturar erros em componentes funcionais
-export const useErrorHandler = () => {
-  const handleError = React.useCallback((error: Error, errorInfo?: React.ErrorInfo) => {
-    console.error('Error caught by useErrorHandler:', error, errorInfo);
-    
-    // Registrar no performance monitor
-    performanceMonitor.recordApiCall(performance.now(), false);
-    
-    // Em produção, enviar para serviço de monitoramento
-    // sendErrorReport({ error, errorInfo });
-  }, []);
+function ErrorFallback({
+  error,
+  errorInfo,
+  errorId,
+  level,
+  retryCount,
+  maxRetries,
+  showDetails,
+  onRetry,
+  onReload,
+  onGoHome
+}: ErrorFallbackProps) {
+  const { isOnline, isApiAvailable } = useConnectivity();
+  const [detailsVisible, setDetailsVisible] = React.useState(showDetails);
 
-  return { handleError };
-};
+  const getErrorSeverity = () => {
+    switch (level) {
+      case 'critical':
+        return {
+          color: 'text-red-600',
+          bgColor: 'bg-red-50',
+          borderColor: 'border-red-200',
+          icon: AlertTriangle,
+          title: 'Critical Error'
+        };
+      case 'page':
+        return {
+          color: 'text-orange-600',
+          bgColor: 'bg-orange-50',
+          borderColor: 'border-orange-200',
+          icon: AlertTriangle,
+          title: 'Page Error'
+        };
+      default:
+        return {
+          color: 'text-yellow-600',
+          bgColor: 'bg-yellow-50',
+          borderColor: 'border-yellow-200',
+          icon: Bug,
+          title: 'Component Error'
+        };
+    }
+  };
 
-// Componente de erro simples para casos específicos
-export const SimpleErrorFallback: React.FC<{ 
-  error?: Error; 
-  resetError?: () => void;
-  message?: string;
-}> = ({ error, resetError, message }) => {
+  const severity = getErrorSeverity();
+  const Icon = severity.icon;
+  const canRetry = retryCount < maxRetries;
+
   return (
-    <div className="bg-red-50 border border-red-200 rounded-lg p-4 m-4">
-      <div className="flex items-center">
-        <AlertTriangle className="w-5 h-5 text-red-600 mr-3" />
-        <div className="flex-1">
-          <h3 className="text-red-800 font-medium">
-            {message || 'Erro no componente'}
-          </h3>
-          {error && (
-            <p className="text-red-600 text-sm mt-1">
-              {error.message}
+    <div className={`min-h-[200px] flex items-center justify-center p-4 ${level === 'critical' ? 'min-h-screen' : ''}`}>
+      <div className={`max-w-2xl w-full ${severity.bgColor} ${severity.borderColor} border rounded-lg p-6 shadow-lg`}>
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <Icon className={`h-6 w-6 ${severity.color}`} />
+          <h2 className={`text-xl font-semibold ${severity.color}`}>
+            {severity.title}
+          </h2>
+          <div className="ml-auto flex items-center gap-2">
+            {isOnline ? (
+              <Wifi className="h-4 w-4 text-green-500" title="Online" />
+            ) : (
+              <WifiOff className="h-4 w-4 text-red-500" title="Offline" />
+            )}
+            <span className={`text-xs px-2 py-1 rounded ${
+              isApiAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+            }`}>
+              API {isApiAvailable ? 'Available' : 'Unavailable'}
+            </span>
+          </div>
+        </div>
+
+        {/* Error Message */}
+        <div className="mb-4">
+          <p className="text-gray-700 mb-2">
+            Something went wrong while rendering this {level}.
+          </p>
+          <p className="text-sm text-gray-600">
+            Error ID: <code className="bg-gray-100 px-1 rounded">{errorId}</code>
+          </p>
+          {retryCount > 0 && (
+            <p className="text-sm text-gray-600 mt-1">
+              Retry attempts: {retryCount}/{maxRetries}
             </p>
           )}
         </div>
-        {resetError && (
-          <button
-            onClick={resetError}
-            className="ml-3 text-red-600 hover:text-red-800 transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
+
+        {/* Connection Status */}
+        {!isOnline && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-200 rounded">
+            <p className="text-red-700 text-sm">
+              ⚠️ You're currently offline. This error might be related to connectivity issues.
+            </p>
+          </div>
         )}
+
+        {/* Actions */}
+        <div className="flex flex-wrap gap-3 mb-4">
+          {canRetry && (
+            <button
+              onClick={onRetry}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Retry ({maxRetries - retryCount} left)
+            </button>
+          )}
+          
+          {level !== 'critical' && (
+            <button
+              onClick={onGoHome}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+            >
+              <Home className="h-4 w-4" />
+              Go Home
+            </button>
+          )}
+          
+          <button
+            onClick={onReload}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Reload Page
+          </button>
+        </div>
+
+        {/* Error Details Toggle */}
+        <div className="border-t pt-4">
+          <button
+            onClick={() => setDetailsVisible(!detailsVisible)}
+            className="text-sm text-gray-600 hover:text-gray-800 underline"
+          >
+            {detailsVisible ? 'Hide' : 'Show'} Technical Details
+          </button>
+          
+          {detailsVisible && (
+            <div className="mt-3 space-y-3">
+              <div>
+                <h4 className="font-medium text-gray-700 mb-1">Error Message:</h4>
+                <pre className="text-xs bg-gray-100 p-2 rounded overflow-x-auto text-red-600">
+                  {error.message}
+                </pre>
+              </div>
+              
+              {error.stack && (
+                <div>
+                  <h4 className="font-medium text-gray-700 mb-1">Stack Trace:</h4>
+                  <pre className="text-xs bg-gray-100 p-2 rounded overflow-x-auto max-h-32 overflow-y-auto">
+                    {error.stack}
+                  </pre>
+                </div>
+              )}
+              
+              {errorInfo?.componentStack && (
+                <div>
+                  <h4 className="font-medium text-gray-700 mb-1">Component Stack:</h4>
+                  <pre className="text-xs bg-gray-100 p-2 rounded overflow-x-auto max-h-32 overflow-y-auto">
+                    {errorInfo.componentStack}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
-};
+}
+
+// Hook para usar Error Boundary programaticamente
+export function useErrorHandler() {
+  const [error, setError] = React.useState<Error | null>(null);
+  
+  const resetError = React.useCallback(() => {
+    setError(null);
+  }, []);
+  
+  const captureError = React.useCallback((error: Error, context?: any) => {
+    logger.error(
+      'Manual error capture',
+      'ErrorHandler',
+      {
+        error: error.message,
+        stack: error.stack,
+        context
+      },
+      error
+    );
+    setError(error);
+  }, []);
+  
+  React.useEffect(() => {
+    if (error) {
+      throw error;
+    }
+  }, [error]);
+  
+  return { captureError, resetError };
+}
+
+// Componentes especializados
+export function PageErrorBoundary({ children, ...props }: Omit<Props, 'level'>) {
+  return (
+    <ErrorBoundaryClass level="page" {...props}>
+      {children}
+    </ErrorBoundaryClass>
+  );
+}
+
+export function ComponentErrorBoundary({ children, ...props }: Omit<Props, 'level'>) {
+  return (
+    <ErrorBoundaryClass level="component" {...props}>
+      {children}
+    </ErrorBoundaryClass>
+  );
+}
+
+export function CriticalErrorBoundary({ children, ...props }: Omit<Props, 'level'>) {
+  return (
+    <ErrorBoundaryClass level="critical" {...props}>
+      {children}
+    </ErrorBoundaryClass>
+  );
+}
+
+// HOC para adicionar Error Boundary automaticamente
+export function withErrorBoundary<P extends object>(
+  Component: React.ComponentType<P>,
+  errorBoundaryProps?: Omit<Props, 'children'>
+) {
+  const WrappedComponent = (props: P) => (
+    <ErrorBoundaryClass {...errorBoundaryProps}>
+      <Component {...props} />
+    </ErrorBoundaryClass>
+  );
+  
+  WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`;
+  
+  return WrappedComponent;
+}
+
+export default ErrorBoundaryClass;

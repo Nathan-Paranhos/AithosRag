@@ -214,7 +214,7 @@ const MultiTenantDashboard: React.FC = () => {
   }, [hasPermission]);
 
   const filteredTenants = useMemo(() => {
-    let filtered = tenants.filter(tenant => {
+    const filtered = tenants.filter(tenant => {
       const matchesSearch = tenant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            tenant.domain.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            tenant.contactPerson.toLowerCase().includes(searchTerm.toLowerCase());

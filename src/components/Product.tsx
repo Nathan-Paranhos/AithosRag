@@ -1,6 +1,6 @@
 import React from 'react';
 import { Search, Bot, FileText } from 'lucide-react';
-import OptimizedChat from './OptimizedChat';
+import AIInterface from './AIInterface';
 
 const Product: React.FC = () => {
   const features = [
@@ -65,10 +65,10 @@ const Product: React.FC = () => {
             ))}
           </div>
 
-          {/* Right - Optimized Chat Interface */}
+          {/* Right - AI Interface */}
           <div className="relative">
             <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-10 border border-primary-400/30 shadow-2xl">
-              <OptimizedChat />
+              <AIInterface />
               
               <div className="absolute -top-6 -left-6 bg-brand-main-blue text-white p-4 rounded-2xl shadow-2xl">
                 <Bot className="h-8 w-8" />

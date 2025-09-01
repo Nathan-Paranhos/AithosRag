@@ -1,0 +1,784 @@
+// Multi-Tenant Manager Component - Enterprise Multi-tenancy Support
+// Tenant management, isolation, resource allocation, billing
+
+import React, { useState, useEffect } from 'react';
+import { Building2, DollarSign, AlertTriangle, CheckCircle, TrendingUp, TrendingDown, Search, RefreshCw, Download, Eye, Edit, Trash2 } from 'lucide-react';
+import { useAuth } from '../services/jwtAuthService';
+
+interface Tenant {
+  id: string;
+  name: string;
+  domain: string;
+  subdomain: string;
+  status: 'active' | 'suspended' | 'trial' | 'inactive';
+  plan: 'starter' | 'professional' | 'enterprise' | 'custom';
+  createdAt: number;
+  lastActivity: number;
+  owner: {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string;
+  };
+  settings: {
+    maxUsers: number;
+    maxStorage: number; // GB
+    maxApiCalls: number;
+    customBranding: boolean;
+    ssoEnabled: boolean;
+    auditLogsRetention: number; // days
+    backupFrequency: 'daily' | 'weekly' | 'monthly';
+  };
+  usage: {
+    users: number;
+    storage: number; // GB
+    apiCalls: number;
+    bandwidth: number; // GB
+  };
+  billing: {
+    monthlyRevenue: number;
+    totalRevenue: number;
+    lastPayment: number;
+    nextBilling: number;
+    paymentMethod: string;
+    currency: string;
+  };
+  metrics: {
+    uptime: number;
+    responseTime: number;
+    errorRate: number;
+    satisfaction: number;
+  };
+  features: string[];
+  customizations: {
+    theme: {
+      primaryColor: string;
+      logo?: string;
+      favicon?: string;
+    };
+    whiteLabel: boolean;
+    customDomain: boolean;
+  };
+}
+
+interface TenantAlert {
+  id: string;
+  tenantId: string;
+  type: 'usage' | 'billing' | 'security' | 'performance' | 'compliance';
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  title: string;
+  message: string;
+  timestamp: number;
+  resolved: boolean;
+  autoResolvable: boolean;
+}
+
+interface ResourceUsage {
+  tenantId: string;
+  tenantName: string;
+  cpu: number;
+  memory: number;
+  storage: number;
+  bandwidth: number;
+  apiCalls: number;
+  cost: number;
+  timestamp: number;
+}
+
+const MultiTenantManager: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'tenants' | 'resources' | 'billing' | 'alerts' | 'analytics'>('overview');
+  const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [planFilter, setPlanFilter] = useState<string>('all');
+  const [loading, setLoading] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  
+  const { user, hasPermission } = useAuth();
+  
+  // Mock data - in real app, this would come from APIs
+  const [tenants] = useState<Tenant[]>([
+    {
+      id: '1',
+      name: 'Acme Corporation',
+      domain: 'acme.com',
+      subdomain: 'acme',
+      status: 'active',
+      plan: 'enterprise',
+      createdAt: Date.now() - 86400000 * 30,
+      lastActivity: Date.now() - 3600000,
+      owner: {
+        id: 'owner1',
+        name: 'John Smith',
+        email: 'john@acme.com',
+        phone: '+1-555-0123'
+      },
+      settings: {
+        maxUsers: 500,
+        maxStorage: 1000,
+        maxApiCalls: 100000,
+        customBranding: true,
+        ssoEnabled: true,
+        auditLogsRetention: 365,
+        backupFrequency: 'daily'
+      },
+      usage: {
+        users: 347,
+        storage: 756.2,
+        apiCalls: 87543,
+        bandwidth: 234.5
+      },
+      billing: {
+        monthlyRevenue: 2499,
+        totalRevenue: 74970,
+        lastPayment: Date.now() - 86400000 * 5,
+        nextBilling: Date.now() + 86400000 * 25,
+        paymentMethod: 'Credit Card',
+        currency: 'USD'
+      },
+      metrics: {
+        uptime: 99.9,
+        responseTime: 145,
+        errorRate: 0.02,
+        satisfaction: 4.8
+      },
+      features: ['SSO', 'Custom Branding', 'API Access', 'Advanced Analytics', 'Priority Support'],
+      customizations: {
+        theme: {
+          primaryColor: '#2563EB',
+          logo: 'https://example.com/acme-logo.png'
+        },
+        whiteLabel: true,
+        customDomain: true
+      }
+    },
+    {
+      id: '2',
+      name: 'TechStart Inc',
+      domain: 'techstart.io',
+      subdomain: 'techstart',
+      status: 'trial',
+      plan: 'professional',
+      createdAt: Date.now() - 86400000 * 7,
+      lastActivity: Date.now() - 1800000,
+      owner: {
+        id: 'owner2',
+        name: 'Sarah Johnson',
+        email: 'sarah@techstart.io'
+      },
+      settings: {
+        maxUsers: 50,
+        maxStorage: 100,
+        maxApiCalls: 10000,
+        customBranding: false,
+        ssoEnabled: false,
+        auditLogsRetention: 90,
+        backupFrequency: 'weekly'
+      },
+      usage: {
+        users: 23,
+        storage: 45.8,
+        apiCalls: 3421,
+        bandwidth: 67.2
+      },
+      billing: {
+        monthlyRevenue: 99,
+        totalRevenue: 99,
+        lastPayment: Date.now() - 86400000 * 7,
+        nextBilling: Date.now() + 86400000 * 23,
+        paymentMethod: 'Trial',
+        currency: 'USD'
+      },
+      metrics: {
+        uptime: 99.5,
+        responseTime: 189,
+        errorRate: 0.05,
+        satisfaction: 4.2
+      },
+      features: ['Basic Analytics', 'Email Support'],
+      customizations: {
+        theme: {
+          primaryColor: '#10B981'
+        },
+        whiteLabel: false,
+        customDomain: false
+      }
+    },
+    {
+      id: '3',
+      name: 'Global Solutions Ltd',
+      domain: 'globalsolutions.com',
+      subdomain: 'global',
+      status: 'active',
+      plan: 'custom',
+      createdAt: Date.now() - 86400000 * 180,
+      lastActivity: Date.now() - 900000,
+      owner: {
+        id: 'owner3',
+        name: 'Michael Chen',
+        email: 'michael@globalsolutions.com',
+        phone: '+44-20-7946-0958'
+      },
+      settings: {
+        maxUsers: 1000,
+        maxStorage: 5000,
+        maxApiCalls: 500000,
+        customBranding: true,
+        ssoEnabled: true,
+        auditLogsRetention: 365,
+        backupFrequency: 'daily'
+      },
+      usage: {
+        users: 892,
+        storage: 3247.6,
+        apiCalls: 234567,
+        bandwidth: 1234.8
+      },
+      billing: {
+        monthlyRevenue: 9999,
+        totalRevenue: 599940,
+        lastPayment: Date.now() - 86400000 * 2,
+        nextBilling: Date.now() + 86400000 * 28,
+        paymentMethod: 'Wire Transfer',
+        currency: 'USD'
+      },
+      metrics: {
+        uptime: 99.99,
+        responseTime: 98,
+        errorRate: 0.001,
+        satisfaction: 4.9
+      },
+      features: ['SSO', 'Custom Branding', 'API Access', 'Advanced Analytics', 'Priority Support', 'Custom Integrations', 'Dedicated Support'],
+      customizations: {
+        theme: {
+          primaryColor: '#7C3AED',
+          logo: 'https://example.com/global-logo.png',
+          favicon: 'https://example.com/global-favicon.ico'
+        },
+        whiteLabel: true,
+        customDomain: true
+      }
+    }
+  ];
+  
+  const alerts: TenantAlert[] = [
+    {
+      id: '1',
+      tenantId: '1',
+      type: 'usage',
+      severity: 'medium',
+      title: 'Storage Usage Warning',
+      message: 'Acme Corporation is approaching 80% storage limit (756GB/1000GB)',
+      timestamp: Date.now() - 3600000,
+      resolved: false,
+      autoResolvable: false
+    },
+    {
+      id: '2',
+      tenantId: '2',
+      type: 'billing',
+      severity: 'high',
+      title: 'Trial Expiring Soon',
+      message: 'TechStart Inc trial expires in 3 days. No payment method on file.',
+      timestamp: Date.now() - 1800000,
+      resolved: false,
+      autoResolvable: false
+    },
+    {
+      id: '3',
+      tenantId: '3',
+      type: 'performance',
+      severity: 'low',
+      title: 'Response Time Spike',
+      message: 'Global Solutions Ltd experienced 15% increase in response time',
+      timestamp: Date.now() - 7200000,
+      resolved: true,
+      autoResolvable: true
+    }
+  ];
+  
+  const resourceUsage: ResourceUsage[] = [
+    {
+      tenantId: '1',
+      tenantName: 'Acme Corporation',
+      cpu: 67.5,
+      memory: 78.2,
+      storage: 756.2,
+      bandwidth: 234.5,
+      apiCalls: 87543,
+      cost: 2499,
+      timestamp: Date.now()
+    },
+    {
+      tenantId: '2',
+      tenantName: 'TechStart Inc',
+      cpu: 23.1,
+      memory: 34.7,
+      storage: 45.8,
+      bandwidth: 67.2,
+      apiCalls: 3421,
+      cost: 99,
+      timestamp: Date.now()
+    },
+    {
+      tenantId: '3',
+      tenantName: 'Global Solutions Ltd',
+      cpu: 89.3,
+      memory: 92.1,
+      storage: 3247.6,
+      bandwidth: 1234.8,
+      apiCalls: 234567,
+      cost: 9999,
+      timestamp: Date.now()
+    }
+  ];
+  
+  const handleRefresh = async () => {
+    setLoading(true);
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setLoading(false);
+  };
+  
+  const handleExport = () => {
+    const data = {
+      tenants,
+      alerts,
+      resourceUsage,
+      exportedAt: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `multi-tenant-report-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'text-green-400 bg-green-500/20';
+      case 'trial': return 'text-blue-400 bg-blue-500/20';
+      case 'suspended': return 'text-red-400 bg-red-500/20';
+      case 'inactive': return 'text-gray-400 bg-gray-500/20';
+      default: return 'text-gray-400 bg-gray-500/20';
+    }
+  };
+  
+  const getPlanColor = (plan: string) => {
+    switch (plan) {
+      case 'starter': return 'text-gray-400 bg-gray-500/20';
+      case 'professional': return 'text-blue-400 bg-blue-500/20';
+      case 'enterprise': return 'text-purple-400 bg-purple-500/20';
+      case 'custom': return 'text-yellow-400 bg-yellow-500/20';
+      default: return 'text-gray-400 bg-gray-500/20';
+    }
+  };
+  
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'critical': return 'text-red-400 bg-red-500/20 border-red-500/30';
+      case 'high': return 'text-orange-400 bg-orange-500/20 border-orange-500/30';
+      case 'medium': return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30';
+      case 'low': return 'text-green-400 bg-green-500/20 border-green-500/30';
+      default: return 'text-gray-400 bg-gray-500/20 border-gray-500/30';
+    }
+  };
+  
+  const getUsagePercentage = (used: number, max: number) => {
+    return Math.min((used / max) * 100, 100);
+  };
+  
+  const getUsageColor = (percentage: number) => {
+    if (percentage >= 90) return 'bg-red-500';
+    if (percentage >= 75) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+  
+  const filteredTenants = tenants.filter(tenant => {
+    const matchesSearch = tenant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         tenant.domain.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         tenant.owner.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || tenant.status === statusFilter;
+    const matchesPlan = planFilter === 'all' || tenant.plan === planFilter;
+    return matchesSearch && matchesStatus && matchesPlan;
+  });
+  
+  const totalRevenue = tenants.reduce((sum, tenant) => sum + tenant.billing.monthlyRevenue, 0);
+  const totalUsers = tenants.reduce((sum, tenant) => sum + tenant.usage.users, 0);
+  const avgUptime = tenants.reduce((sum, tenant) => sum + tenant.metrics.uptime, 0) / tenants.length;
+  const activeAlerts = alerts.filter(alert => !alert.resolved).length;
+  
+  if (!hasPermission('tenant:read')) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-300 mb-2">Access Denied</h3>
+          <p className="text-gray-500">You don't have permission to view multi-tenant management.</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Multi-Tenant Management</h1>
+          <p className="text-gray-400">
+            Manage tenants, resources, billing, and performance across all clients
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
+            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg px-3 py-2 text-white text-sm transition-all disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-2 text-white text-sm transition-all"
+          >
+            <Download className="w-4 h-4" />
+            Export
+          </button>
+          
+          {hasPermission('tenant:create') && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 rounded-lg px-3 py-2 text-white text-sm transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              New Tenant
+            </button>
+          )}
+        </div>
+      </div>
+      
+      {/* Navigation Tabs */}
+      <div className="flex space-x-1 bg-white/5 rounded-xl p-1">
+        {[
+          { id: 'overview', label: 'Overview', icon: BarChart3 },
+          { id: 'tenants', label: 'Tenants', icon: Building2 },
+          { id: 'resources', label: 'Resources', icon: Database },
+          { id: 'billing', label: 'Billing', icon: DollarSign },
+          { id: 'alerts', label: 'Alerts', icon: AlertTriangle },
+          { id: 'analytics', label: 'Analytics', icon: TrendingUp }
+        ].map(tab => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeTab === tab.id
+                  ? 'bg-white/20 text-white shadow-lg'
+                  : 'text-gray-400 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+      
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 bg-blue-500/20 rounded-lg">
+                  <Building2 className="w-6 h-6 text-blue-400" />
+                </div>
+                <span className="text-blue-400 text-sm font-medium">+2 this month</span>
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-1">{tenants.length}</h3>
+              <p className="text-gray-400 text-sm">Total Tenants</p>
+            </div>
+            
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 bg-green-500/20 rounded-lg">
+                  <DollarSign className="w-6 h-6 text-green-400" />
+                </div>
+                <span className="text-green-400 text-sm font-medium">+12%</span>
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-1">${totalRevenue.toLocaleString()}</h3>
+              <p className="text-gray-400 text-sm">Monthly Revenue</p>
+            </div>
+            
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 bg-purple-500/20 rounded-lg">
+                  <Users className="w-6 h-6 text-purple-400" />
+                </div>
+                <span className="text-purple-400 text-sm font-medium">+8%</span>
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-1">{totalUsers.toLocaleString()}</h3>
+              <p className="text-gray-400 text-sm">Total Users</p>
+            </div>
+            
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 bg-yellow-500/20 rounded-lg">
+                  <Activity className="w-6 h-6 text-yellow-400" />
+                </div>
+                <span className="text-yellow-400 text-sm font-medium">{avgUptime.toFixed(2)}%</span>
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-1">Excellent</h3>
+              <p className="text-gray-400 text-sm">Avg Uptime</p>
+            </div>
+          </div>
+          
+          {/* Recent Activity */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top Tenants */}
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">Top Revenue Tenants</h3>
+              <div className="space-y-3">
+                {tenants
+                  .sort((a, b) => b.billing.monthlyRevenue - a.billing.monthlyRevenue)
+                  .slice(0, 3)
+                  .map(tenant => (
+                    <div key={tenant.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                          <Building2 className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <div className="text-white font-medium">{tenant.name}</div>
+                          <div className="text-gray-400 text-sm">{tenant.plan} plan</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-white font-semibold">${tenant.billing.monthlyRevenue.toLocaleString()}</div>
+                        <div className="text-gray-400 text-sm">/month</div>
+                      </div>
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+            
+            {/* Active Alerts */}
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white">Active Alerts</h3>
+                <span className="text-red-400 text-sm font-medium">{activeAlerts} active</span>
+              </div>
+              <div className="space-y-3">
+                {alerts
+                  .filter(alert => !alert.resolved)
+                  .slice(0, 3)
+                  .map(alert => {
+                    const tenant = tenants.find(t => t.id === alert.tenantId);
+                    return (
+                      <div key={alert.id} className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                        <div className={`w-3 h-3 rounded-full mt-2 ${
+                          alert.severity === 'critical' ? 'bg-red-500' :
+                          alert.severity === 'high' ? 'bg-orange-500' :
+                          alert.severity === 'medium' ? 'bg-yellow-500' :
+                          'bg-green-500'
+                        }`}></div>
+                        <div className="flex-1">
+                          <div className="text-white font-medium text-sm">{alert.title}</div>
+                          <div className="text-gray-400 text-xs">{tenant?.name}</div>
+                          <div className="text-gray-500 text-xs mt-1">
+                            {new Date(alert.timestamp).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Tenants Tab */}
+      {activeTab === 'tenants' && (
+        <div className="space-y-6">
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search tenants..."
+                  className="w-full pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                />
+              </div>
+            </div>
+            
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            >
+              <option value="all">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="trial">Trial</option>
+              <option value="suspended">Suspended</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            
+            <select
+              value={planFilter}
+              onChange={(e) => setPlanFilter(e.target.value)}
+              className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            >
+              <option value="all">All Plans</option>
+              <option value="starter">Starter</option>
+              <option value="professional">Professional</option>
+              <option value="enterprise">Enterprise</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          
+          {/* Tenants List */}
+          <div className="space-y-4">
+            {filteredTenants.map(tenant => (
+              <div key={tenant.id} className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                      <Building2 className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-semibold text-white mb-1">{tenant.name}</h4>
+                      <p className="text-gray-400 mb-2">{tenant.domain}</p>
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(tenant.status)}`}>
+                          {tenant.status.toUpperCase()}
+                        </span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPlanColor(tenant.plan)}`}>
+                          {tenant.plan.toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all">
+                      <Eye className="w-4 h-4 text-gray-400" />
+                    </button>
+                    {hasPermission('tenant:update') && (
+                      <button className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all">
+                        <Edit className="w-4 h-4 text-gray-400" />
+                      </button>
+                    )}
+                    {hasPermission('tenant:delete') && (
+                      <button className="p-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-all">
+                        <Trash2 className="w-4 h-4 text-red-400" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Usage Metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-400">Users</span>
+                      <span className="text-white">{tenant.usage.users}/{tenant.settings.maxUsers}</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(tenant.usage.users, tenant.settings.maxUsers))}`}
+                        style={{ width: `${getUsagePercentage(tenant.usage.users, tenant.settings.maxUsers)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-400">Storage</span>
+                      <span className="text-white">{tenant.usage.storage.toFixed(1)}GB/{tenant.settings.maxStorage}GB</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(tenant.usage.storage, tenant.settings.maxStorage))}`}
+                        style={{ width: `${getUsagePercentage(tenant.usage.storage, tenant.settings.maxStorage)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-400">API Calls</span>
+                      <span className="text-white">{tenant.usage.apiCalls.toLocaleString()}/{tenant.settings.maxApiCalls.toLocaleString()}</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(tenant.usage.apiCalls, tenant.settings.maxApiCalls))}`}
+                        style={{ width: `${getUsagePercentage(tenant.usage.apiCalls, tenant.settings.maxApiCalls)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-400">Revenue</span>
+                      <span className="text-white">${tenant.billing.monthlyRevenue.toLocaleString()}/mo</span>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Total: ${tenant.billing.totalRevenue.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Tenant Details */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-400">Owner:</span>
+                    <span className="text-white ml-2">{tenant.owner.name}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Created:</span>
+                    <span className="text-white ml-2">{new Date(tenant.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Last Activity:</span>
+                    <span className="text-white ml-2">{new Date(tenant.lastActivity).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Other tabs would be implemented similarly... */}
+      {activeTab !== 'overview' && activeTab !== 'tenants' && (
+        <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-8 text-center">
+          <div className="text-gray-400 mb-4">
+            <Building2 className="w-16 h-16 mx-auto mb-4 opacity-50" />
+            <h3 className="text-lg font-semibold mb-2">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Tab</h3>
+            <p>This section is under development and will be available soon.</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default MultiTenantManager;

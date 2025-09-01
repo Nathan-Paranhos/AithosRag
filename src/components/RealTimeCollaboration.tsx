@@ -58,7 +58,7 @@ interface RealTimeCollaborationProps {
 
 // Mock WebSocket simulation
 class MockWebSocket {
-  private listeners: { [key: string]: Function[] } = {};
+  private listeners: { [key: string]: ((...args: unknown[]) => void)[] } = {};
   private isConnected = false;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
@@ -85,14 +85,14 @@ class MockWebSocket {
     }
   }
 
-  on(event: string, callback: Function) {
+  on(event: string, callback: (...args: unknown[]) => void) {
     if (!this.listeners[event]) {
       this.listeners[event] = [];
     }
     this.listeners[event].push(callback);
   }
 
-  off(event: string, callback: Function) {
+  off(event: string, callback: (...args: unknown[]) => void) {
     if (this.listeners[event]) {
       this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
     }

@@ -15,17 +15,16 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Aithos RAG" />
-    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png" />
-    <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-167x167.png" />
+    <link rel="apple-touch-icon" href="/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512x512.png" />
     
     <!-- Android PWA Meta Tags -->
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#1a1a2e" />
-    <meta name="msapplication-navbutton-color" content="#1a1a2e" />
-    <meta name="msapplication-TileColor" content="#1a1a2e" />
-    <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
+    <meta name="theme-color" content="#3b82f6" />
+    <meta name="msapplication-navbutton-color" content="#3b82f6" />
+    <meta name="msapplication-TileColor" content="#3b82f6" />
+    <meta name="msapplication-TileImage" content="/icon-192x192.png" />
     
     <!-- Preload Critical Resources -->
     <link rel="preload" href="/sw.js" as="script" />
@@ -43,25 +42,63 @@
         document.head.appendChild(script);
       }
     </script>
-    <script type="module" crossorigin src="/assets/index-CdoyXn4P.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-D5vH9U7P.css">
+    <script type="module" crossorigin src="/assets/js/index-Bq5h5Coh.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/js/react-vendor-DEcDpsyA.js">
+    <link rel="modulepreload" crossorigin href="/assets/js/utils-vendor-B-dksMZM.js">
+    <link rel="modulepreload" crossorigin href="/assets/js/ui-vendor-B6YQTroB.js">
+    <link rel="modulepreload" crossorigin href="/assets/js/chat-features-CHesCrBw.js">
+    <link rel="modulepreload" crossorigin href="/assets/js/router-vendor-DvVa2piF.js">
+    <link rel="stylesheet" crossorigin href="/assets/css/index-zQx0dbt9.css">
   </head>
   <body>
     <div id="root"></div>
     
     <!-- Service Worker Registration -->
     <script>
+      // Registro robusto do Service Worker
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('SW registered: ', registration);
-            })
-            .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
+        window.addEventListener('load', async () => {
+          try {
+            const registration = await navigator.serviceWorker.register('/sw.js', {
+              scope: '/'
             });
+            
+            console.log('[PWA] Service Worker registered successfully:', registration.scope);
+            
+            // Verificar atualizações
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    console.log('[PWA] New content available, please refresh.');
+                    // Opcional: mostrar notificação para o usuário
+                  }
+                });
+              }
+            });
+            
+          } catch (error) {
+            console.error('[PWA] Service Worker registration failed:', error);
+          }
         });
+        
+        // Listener para mensagens do Service Worker
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          console.log('[PWA] Message from SW:', event.data);
+        });
+      } else {
+        console.warn('[PWA] Service Workers not supported in this browser');
       }
+      
+      // Verificação de conectividade inicial
+      window.addEventListener('load', () => {
+        // Importar e inicializar o sistema de conectividade
+        if (window.ConnectivityManager) {
+          const manager = window.ConnectivityManager.getInstance();
+          manager.checkConnection();
+        }
+      });
     </script>
   </body>
 </html>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Mail, Phone, MapPin, Send, Sparkles } from 'lucide-react';
-import Logo from './Logo';
+import { Mail, Phone, MapPin, Send, Sparkles, Code } from 'lucide-react';
+import ConnectionIndicator from './ConnectionIndicator';
 
 const Footer: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -91,18 +91,28 @@ const Footer: React.FC = () => {
         {/* Footer Content */}
         <div className="border-t border-white/20 pt-12">
           <div className="text-center mb-8">
-            <div className="flex justify-center mb-4">
-              <div className="bg-brand-main-blue p-4 rounded-2xl shadow-2xl">
-                <Logo />
+            <div className="flex justify-center mb-6">
+              <div className="bg-brand-main-blue p-6 rounded-2xl shadow-2xl">
+                <Code className="h-12 w-12 text-white" />
               </div>
             </div>
-            <h3 className="text-3xl font-bold mb-4 text-white">
-              Desenvolvido por Aithos Tech
-            </h3>
-            <p className="text-primary-200/80 max-w-2xl mx-auto text-lg">
+            <div className="mb-4">
+              <h3 className="text-4xl font-bold text-white mb-2">
+                Aithos <span className="text-brand-main-blue">RAG</span>
+              </h3>
+              <div className="text-lg text-primary-300 font-medium tracking-wide">
+                Developer by Aithos Tech
+              </div>
+            </div>
+            <p className="text-primary-200/80 max-w-2xl mx-auto text-lg mb-6">
               Transformando dados em conhecimento, conhecimento em poder. 
               A Aithos Tech está redefinindo o futuro da gestão de informações corporativas.
             </p>
+            
+            {/* Connection Status */}
+            <div className="flex justify-center">
+              <ConnectionIndicator variant="compact" />
+            </div>
           </div>
 
           {/* Contact Info */}
@@ -165,6 +175,9 @@ const Footer: React.FC = () => {
               </div>
               <div className="text-primary-300/60 text-sm font-medium">
                 © 2024 Aithos Tech. Todos os direitos reservados.
+                <div className="text-xs mt-1 opacity-75">
+                  Developer by Aithos Tech - Powered by AI
+                </div>
               </div>
             </div>
           </div>

@@ -1,140 +1,207 @@
-# Aithos RAG - Sistema de Recuperação Aumentada por Geração
+# Aithos RAG Frontend
 
-🚀 **Plataforma inovadora de IA que transforma documentos dispersos em informações precisas e acessíveis**
+## Descrição
+Interface frontend para o sistema Aithos RAG, construída com React, TypeScript, Vite e Tailwind CSS.
 
-Desenvolvido pela **Aithos Tech**, liderada pelo CEO Nathan Paranhos, especialista em soluções RAG (Retrieval-Augmented Generation) para centralização e recuperação de conhecimento corporativo.
+## Funcionalidades
+- ✅ Interface de chat moderna e responsiva
+- ✅ Sistema de temas (claro/escuro)
+- ✅ PWA (Progressive Web App)
+- ✅ Sistema de retry automático
+- ✅ Gerenciamento de estado com Zustand
+- ✅ Componentes reutilizáveis
+- ✅ Hooks customizados
+- ✅ Conectividade inteligente com backend
+- ✅ Notificações toast
+- ✅ Design system consistente
 
-## ✨ Funcionalidades
-
-- 🔍 **Acesso instantâneo** a informações críticas em segundos
-- 🤖 **Automação de respostas** a perguntas frequentes
-- 📄 **Redução de retrabalho** e inconsistências
-- 💬 **Chat inteligente** com IA treinada
-- 🎨 **Interface moderna** com animações de partículas responsivas
-
-## 🛠️ Tecnologias
-
-- **Frontend**: React + TypeScript + Vite
+## Tecnologias
+- **Framework**: React 18
+- **Build Tool**: Vite
+- **Linguagem**: TypeScript
 - **Styling**: Tailwind CSS
-- **IA**: Groq API (Llama 3)
-- **Animações**: Canvas + SVG
-- **Deploy**: Netlify
+- **Estado**: Zustand
+- **Roteamento**: React Router
+- **Ícones**: Lucide React
+- **Notificações**: Sonner
+- **PWA**: Vite PWA Plugin
 
-## 🚀 Configuração e Instalação
+## Instalação
 
-### 1. Clone o repositório
+### Pré-requisitos
+- Node.js 18 ou superior
+- npm, yarn ou pnpm
+
+### Passos
+
+1. **Clone o repositório**
 ```bash
-git clone <repository-url>
-cd Aithos-RAG
+git clone https://github.com/Nathan-Paranhos/AithosRag.git
+cd AithosRag
 ```
 
-### 2. Instale as dependências
+2. **Instale as dependências**
 ```bash
+# Com npm
 npm install
+
+# Com yarn
+yarn install
+
+# Com pnpm
+pnpm install
 ```
 
-### 3. Configure as variáveis de ambiente
-
-#### Para desenvolvimento local:
-```bash
-# Copie o arquivo de exemplo
-cp .env.example .env
-
-# Edite o arquivo .env e substitua os valores
-```
-
-#### Configuração da API Groq:
-1. Acesse [Groq Console](https://console.groq.com/keys)
-2. Crie uma conta gratuita
-3. Gere uma nova API Key
-4. Substitua `your_groq_api_key_here` no arquivo `.env`:
-
+3. **Configure as variáveis de ambiente**
+Crie um arquivo `.env` na raiz do projeto:
 ```env
-VITE_GROQ_API_KEY=your_groq_api_key_here
+VITE_API_URL=http://localhost:3005
+VITE_APP_NAME=Aithos RAG
+VITE_APP_VERSION=1.0.0
 ```
 
-### 4. Execute o projeto
+4. **Inicie o servidor de desenvolvimento**
+```bash
+# Com npm
+npm run dev
+
+# Com yarn
+yarn dev
+
+# Com pnpm
+pnpm dev
+```
+
+## Scripts Disponíveis
+
 ```bash
 # Desenvolvimento
 npm run dev
 
-# Build para produção
+# Build de produção
 npm run build
 
-# Preview da build
+# Preview do build
 npm run preview
+
+# Testes
+npm run test
+
+# Linting
+npm run lint
+
+# Verificação completa (build + testes)
+npm run deploy:check
 ```
 
-## 🌐 Deploy no Netlify
+## Estrutura do Projeto
 
-### Configuração de Variáveis de Ambiente
+```
+src/
+├── components/           # Componentes reutilizáveis
+│   ├── ui/              # Componentes base da UI
+│   ├── chat/            # Componentes do chat
+│   └── layout/          # Componentes de layout
+├── hooks/               # Hooks customizados
+├── pages/               # Páginas da aplicação
+├── store/               # Gerenciamento de estado
+├── utils/               # Funções utilitárias
+├── styles/              # Estilos globais
+└── types/               # Definições de tipos
+```
 
-1. **No painel do Netlify**:
-   - Vá para `Site settings` > `Environment variables`
-   - Adicione: `VITE_GROQ_API_KEY` = `sua_chave_groq_aqui`
+## Componentes Principais
 
-2. **Configuração automática**:
-   - O projeto está configurado para deploy automático
-   - O build command: `npm run build`
-   - Publish directory: `dist`
+### Chat Interface
+- **ChatContainer**: Container principal do chat
+- **MessageList**: Lista de mensagens
+- **MessageInput**: Input para novas mensagens
+- **TypingIndicator**: Indicador de digitação
 
-### Resolução de Problemas de Deploy
+### UI Components
+- **Button**: Botão customizável
+- **Input**: Campo de entrada
+- **Card**: Container de conteúdo
+- **Toast**: Notificações
+- **ThemeToggle**: Alternador de tema
 
-#### Erro de "Secrets Scanning"
-Se você receber erro sobre secrets detectados:
+### Hooks Customizados
+- **useChat**: Gerenciamento do chat
+- **useConnectivity**: Monitoramento de conectividade
+- **useTheme**: Gerenciamento de tema
+- **useRetry**: Sistema de retry
 
-1. ✅ **Já resolvido**: A chave da API foi removida do código
-2. ✅ **Já configurado**: Arquivo `.env` está no `.gitignore`
-3. ✅ **Fallback implementado**: O app funciona sem a API key
+## Deploy
 
-#### Configuração de Variáveis no Netlify
+### Vercel (Recomendado)
+1. Conecte o repositório ao Vercel
+2. Configure as variáveis de ambiente
+3. Deploy automático a cada push
+
+### Netlify
+1. Conecte o repositório ao Netlify
+2. Configure o comando de build: `npm run build`
+3. Configure o diretório de publicação: `dist`
+
+### Build Manual
 ```bash
-# No painel do Netlify, adicione:
-VITE_GROQ_API_KEY=your_groq_api_key_here
+# Gerar build de produção
+npm run build
+
+# Os arquivos estarão na pasta 'dist'
 ```
 
-## 🔧 Scripts Disponíveis
+## Configuração de Produção
+
+### Variáveis de Ambiente
+- `VITE_API_URL`: URL da API backend
+- `VITE_APP_NAME`: Nome da aplicação
+- `VITE_APP_VERSION`: Versão da aplicação
+
+### Otimizações
+- ✅ Code splitting automático
+- ✅ Tree shaking
+- ✅ Minificação
+- ✅ Compressão de assets
+- ✅ PWA caching
+- ✅ Lazy loading de componentes
+
+## PWA Features
+
+- ✅ Instalável como app nativo
+- ✅ Funciona offline (cache básico)
+- ✅ Ícones e splash screens
+- ✅ Manifest configurado
+- ✅ Service Worker
+
+## Temas
+
+O sistema suporta:
+- 🌞 **Tema Claro**: Interface clara e limpa
+- 🌙 **Tema Escuro**: Interface escura para baixa luminosidade
+- 🔄 **Auto**: Segue preferência do sistema
+
+## Responsividade
+
+- 📱 **Mobile**: Otimizado para dispositivos móveis
+- 📱 **Tablet**: Layout adaptado para tablets
+- 💻 **Desktop**: Interface completa para desktop
+- 🖥️ **Large Screens**: Suporte a telas grandes
+
+## Testes
 
 ```bash
-npm run dev          # Servidor de desenvolvimento
-npm run build        # Build para produção
-npm run preview      # Preview da build
-npm run check        # Verificação de tipos TypeScript
+# Executar testes
+npm run test
+
+# Testes com coverage
+npm run test:coverage
+
+# Testes em modo watch
+npm run test:watch
 ```
 
-## 📁 Estrutura do Projeto
-
-```
-Aithos-RAG/
-├── src/
-│   ├── components/          # Componentes React
-│   │   ├── Hero.tsx        # Seção principal
-│   │   ├── Product.tsx     # Chat com IA
-│   │   └── ParticleCanvas.tsx # Animações
-│   ├── hooks/              # Hooks customizados
-│   ├── styles/             # Estilos CSS
-│   └── utils/              # Utilitários
-├── .env.example            # Exemplo de variáveis
-├── .gitignore             # Arquivos ignorados
-└── README.md              # Este arquivo
-```
-
-## 🔒 Segurança
-
-- ✅ API Keys não são expostas no código
-- ✅ Variáveis de ambiente configuradas corretamente
-- ✅ Fallback seguro quando API não disponível
-- ✅ Validação robusta de configurações
-
-## 🎯 Modo Demonstração
-
-O projeto funciona em modo demonstração mesmo sem a API Key configurada:
-- Interface completa disponível
-- Animações de partículas funcionais
-- Mensagens informativas sobre configuração
-- Instruções claras para ativação completa
-
-## 🤝 Contribuição
+## Contribuição
 
 1. Fork o projeto
 2. Crie uma branch para sua feature
@@ -142,12 +209,13 @@ O projeto funciona em modo demonstração mesmo sem a API Key configurada:
 4. Push para a branch
 5. Abra um Pull Request
 
-## 📞 Contato
+## Suporte
 
-**Aithos Tech** - Soluções em IA e RAG  
-**CEO**: Nathan Paranhos  
-**Especialidade**: Centralização e recuperação de conhecimento corporativo
+Para suporte ou dúvidas:
+- Abra uma issue no GitHub
+- Consulte a documentação dos componentes
+- Verifique o console do navegador para erros
 
----
+## Licença
 
-⚡ **Transforme documentos dispersos em informações precisas e acessíveis com Aithos RAG!**
+MIT License - veja o arquivo LICENSE para detalhes.

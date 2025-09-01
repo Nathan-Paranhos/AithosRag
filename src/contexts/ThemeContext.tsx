@@ -80,6 +80,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({
   );
 };
 
-// Re-export hooks from separate files to avoid Fast Refresh warnings
-export { useSystemTheme } from '../hooks/useThemeHooks';
-export { useTheme } from '../hooks/useThemeContext';
+export const useTheme = () => {
+  const context = React.useContext(ThemeContext);
+  if (context === undefined) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+};

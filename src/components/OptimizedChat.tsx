@@ -9,6 +9,7 @@ import { debounce } from 'lodash-es';
 import { useOptimizedChat, type ChatOptions } from '../hooks/useOptimizedChat';
 import { useOfflineStorage, type ConversationData, type MessageData } from '../hooks/useOfflineStorage';
 import { useOfflineSync } from '../hooks/useOfflineSync';
+import { useAutoSync } from '../hooks/useAutoSync';
 import { OfflineSync } from './OfflineSync';
 import { useViewport } from "../utils/viewport";
 import usePWA from '../hooks/usePWA';
@@ -65,9 +66,43 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
   });
 
   // Offline functionality
-  const offlineStorage = useOfflineStorage();
+  const {
+    isInitialized: isOfflineInitialized,
+    saveMessageOffline,
+    getMessagesOffline,
+    saveConversationOffline,
+    getConversationsOffline,
+    getPendingSyncItems,
+    markSyncCompleted
+  } = useOfflineStorage();
   const { isOnline } = usePWA();
   const [offlineMessages, setOfflineMessages] = useState<MessageData[]>([]);
+  
+  const { isSyncing, syncProgress, addToSyncQueue } = useAutoSync({
+    onSyncStart: () => {
+      console.log('Iniciando sincronização automática...');
+    },
+    onSyncComplete: (synced, failed) => {
+      console.log(`Sincronização concluída: ${synced} itens sincronizados, ${failed} falharam`);
+      if (synced > 0) {
+        // Refresh messages after successful sync
+        const loadOfflineMessages = async () => {
+          if (enableOffline && conversationId && isOfflineInitialized) {
+            try {
+              const messages = await getMessagesOffline(conversationId);
+              setOfflineMessages(messages);
+            } catch (error) {
+              console.error('Failed to load offline messages:', error);
+            }
+          }
+        };
+        loadOfflineMessages();
+      }
+    },
+    onSyncError: (error) => {
+      console.error('Erro na sincronização:', error);
+    }
+  });
   
   // Estados locais
   const [inputValue, setInputValue] = useState('');
@@ -83,21 +118,18 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
 
   // Load offline messages on mount
   useEffect(() => {
-    if (enableOffline && conversationId) {
+    if (enableOffline && conversationId && isOfflineInitialized) {
       const loadOfflineMessages = async () => {
         try {
-          const conversation = await offlineStorage.getConversation(conversationId);
-          if (conversation) {
-            const messages = await offlineStorage.getMessages(conversationId);
-            setOfflineMessages(messages);
-          }
+          const messages = await getMessagesOffline(conversationId);
+          setOfflineMessages(messages);
         } catch (error) {
           console.error('Failed to load offline messages:', error);
         }
       };
       loadOfflineMessages();
     }
-  }, [enableOffline, conversationId, offlineStorage]);
+  }, [enableOffline, conversationId, isOfflineInitialized, getMessagesOffline]);
   
   // Auto-scroll para última mensagem
   const scrollToBottom = useCallback(() => {
@@ -144,32 +176,37 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
     
     try {
       // Save message offline if enabled
-      if (enableOffline && conversationId) {
-        const messageData: MessageData = {
+      if (enableOffline && conversationId && isOfflineInitialized) {
+        const messageData = {
           id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           conversationId,
           content: message,
-          role: 'user',
-          timestamp: new Date().toISOString(),
-          metadata: {
-            isOffline: !isOnline,
-            needsSync: !isOnline
-          }
+          role: 'user' as const,
+          timestamp: Date.now()
         };
         
-        await offlineStorage.saveMessage(messageData);
+        await saveMessageOffline(messageData);
+        setOfflineMessages(prev => [...prev, { ...messageData, synced: false }]);
+      }
+      
+      if (!isOnline && enableOffline) {
+        // Save message offline
+        const messageData: MessageData = {
+          id: Date.now().toString(),
+          conversationId: conversationId || 'default',
+          content: message,
+          role: 'user',
+          timestamp: new Date().toISOString(),
+          isOffline: true
+        };
+        
+        await saveMessageOffline(messageData);
         setOfflineMessages(prev => [...prev, messageData]);
         
-        // Add to sync queue if offline
-        if (!isOnline) {
-          await offlineStorage.addSyncItem({
-            id: `sync_${Date.now()}`,
-            type: 'message',
-            data: messageData,
-            timestamp: new Date().toISOString(),
-            retryCount: 0
-          });
-        }
+        // Add to sync queue for automatic synchronization
+        await addToSyncQueue('message', messageData);
+        
+        return;
       }
       
       // Send message if online
@@ -190,7 +227,7 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
     } catch (error) {
       console.error('❌ Erro ao enviar mensagem:', error);
     }
-  }, [inputValue, isLoading, isStreaming, config.enableStreaming, sendMessage, sendMessageStream, onMessageSent, getSuggestions, enableOffline, conversationId, isOnline, offlineStorage]);
+  }, [inputValue, isLoading, isStreaming, config.enableStreaming, sendMessage, sendMessageStream, onMessageSent, getSuggestions, enableOffline, conversationId, isOnline, saveMessageOffline, isOfflineInitialized, addToSyncQueue]);
   
   // Handle key press
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
@@ -304,8 +341,20 @@ const OptimizedChat: React.FC<OptimizedChatProps> = ({
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
               <Brain className="w-5 h-5 text-blue-400" />
-              <span className="text-sm font-medium text-white">IA Otimizada</span>
-              <span className="text-xs text-blue-300 bg-blue-500/20 px-2 py-1 rounded-full">{selectedModel}</span>
+              <div>
+                <span className="text-sm font-medium text-white">IA Otimizada</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-blue-300 bg-blue-500/20 px-2 py-1 rounded-full">{selectedModel}</span>
+                  {isSyncing && (
+                    <div className="flex items-center gap-1 px-2 py-1 bg-blue-100/20 rounded-full">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                      <span className="text-xs text-blue-300 font-medium">
+                        Sincronizando {syncProgress.synced}/{syncProgress.total}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             
             {/* Status de conexão */}

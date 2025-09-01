@@ -1,428 +1,243 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Activity, Zap, Clock, Database, Wifi, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Activity, Zap, Clock, MemoryStick, TrendingUp, AlertTriangle } from 'lucide-react';
+import { usePerformanceMonitor } from '../hooks/usePerformanceMonitor';
 import { cn } from '../utils/cn';
 
-interface PerformanceMetrics {
-  // Core Web Vitals
-  lcp: number; // Largest Contentful Paint
-  fid: number; // First Input Delay
-  cls: number; // Cumulative Layout Shift
-  fcp: number; // First Contentful Paint
-  ttfb: number; // Time to First Byte
-  
-  // Runtime metrics
-  memoryUsage: number;
-  jsHeapSize: number;
-  domNodes: number;
-  
-  // Network metrics
-  connectionType: string;
-  effectiveType: string;
-  rtt: number;
-  downlink: number;
-  
-  // Custom metrics
-  renderTime: number;
-  bundleSize: number;
-  cacheHitRate: number;
-}
-
-interface PerformanceThresholds {
-  lcp: { good: number; poor: number };
-  fid: { good: number; poor: number };
-  cls: { good: number; poor: number };
-  fcp: { good: number; poor: number };
-  ttfb: { good: number; poor: number };
-}
-
-const THRESHOLDS: PerformanceThresholds = {
-  lcp: { good: 2500, poor: 4000 },
-  fid: { good: 100, poor: 300 },
-  cls: { good: 0.1, poor: 0.25 },
-  fcp: { good: 1800, poor: 3000 },
-  ttfb: { good: 800, poor: 1800 }
-};
-
 interface PerformanceMonitorProps {
-  className?: string;
-  showDetails?: boolean;
-  autoRefresh?: boolean;
-  refreshInterval?: number;
-  onMetricsUpdate?: (metrics: PerformanceMetrics) => void;
+  enabled?: boolean;
+  position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  compact?: boolean;
 }
 
-export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
-  className,
-  showDetails = false,
-  autoRefresh = true,
-  refreshInterval = 5000,
-  onMetricsUpdate
+const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
+  enabled = process.env.NODE_ENV === 'development',
+  position = 'bottom-right',
+  compact = false
 }) => {
-  const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
-  const [isCollecting, setIsCollecting] = useState(false);
-  const [performanceScore, setPerformanceScore] = useState<number>(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const observerRef = useRef<PerformanceObserver | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const {
+    metrics,
+    isLoading,
+    fps,
+    renderTime,
+    componentCount,
+    performanceGrade,
+    recommendations,
+    refresh
+  } = usePerformanceMonitor(enabled);
 
-  // Collect Core Web Vitals
-  const collectWebVitals = (): Promise<Partial<PerformanceMetrics>> => {
-    return new Promise((resolve) => {
-      const vitals: Partial<PerformanceMetrics> = {};
-      
-      // LCP Observer
-      const lcpObserver = new PerformanceObserver((list) => {
-        const entries = list.getEntries();
-        const lastEntry = entries[entries.length - 1] as PerformanceEntry & { startTime: number };
-        vitals.lcp = lastEntry.startTime;
-      });
-      
-      // FID Observer
-      const fidObserver = new PerformanceObserver((list) => {
-        const entries = list.getEntries();
-        entries.forEach((entry: PerformanceEntry & { processingStart: number; startTime: number }) => {
-          vitals.fid = entry.processingStart - entry.startTime;
-        });
-      });
-      
-      // CLS Observer
-      const clsObserver = new PerformanceObserver((list) => {
-        let clsValue = 0;
-        list.getEntries().forEach((entry: PerformanceEntry & { hadRecentInput?: boolean; value: number }) => {
-          if (!entry.hadRecentInput) {
-            clsValue += entry.value;
-          }
-        });
-        vitals.cls = clsValue;
-      });
-      
-      try {
-        lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
-        fidObserver.observe({ entryTypes: ['first-input'] });
-        clsObserver.observe({ entryTypes: ['layout-shift'] });
-        
-        // Get navigation timing
-        const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
-        if (navigation) {
-          vitals.fcp = navigation.responseStart - navigation.fetchStart;
-          vitals.ttfb = navigation.responseStart - navigation.requestStart;
-        }
-        
-        setTimeout(() => {
-          lcpObserver.disconnect();
-          fidObserver.disconnect();
-          clsObserver.disconnect();
-          resolve(vitals);
-        }, 3000);
-      } catch (error) {
-        console.warn('Performance Observer not supported:', error);
-        resolve(vitals);
-      }
-    });
+  if (!enabled || !metrics) return null;
+
+  const positionClasses = {
+    'top-left': 'top-4 left-4',
+    'top-right': 'top-4 right-4',
+    'bottom-left': 'bottom-4 left-4',
+    'bottom-right': 'bottom-4 right-4'
   };
 
-  // Collect runtime metrics
-  const collectRuntimeMetrics = (): Partial<PerformanceMetrics> => {
-    const runtime: Partial<PerformanceMetrics> = {};
-    
-    // Memory usage
-    if ('memory' in performance) {
-      const memory = (performance as any).memory as { usedJSHeapSize: number; totalJSHeapSize: number };
-      runtime.memoryUsage = memory.usedJSHeapSize / 1024 / 1024; // MB
-      runtime.jsHeapSize = memory.totalJSHeapSize / 1024 / 1024; // MB
-    }
-    
-    // DOM nodes count
-    runtime.domNodes = document.querySelectorAll('*').length;
-    
-    // Network information
-    if ('connection' in navigator) {
-      const connection = (navigator as any).connection as { type?: string; effectiveType?: string; rtt?: number; downlink?: number };
-      runtime.connectionType = connection.type || 'unknown';
-      runtime.effectiveType = connection.effectiveType || 'unknown';
-      runtime.rtt = connection.rtt || 0;
-      runtime.downlink = connection.downlink || 0;
-    }
-    
-    return runtime;
-  };
-
-  // Calculate performance score
-  const calculatePerformanceScore = (metrics: PerformanceMetrics): number => {
-    const scores = {
-      lcp: metrics.lcp <= THRESHOLDS.lcp.good ? 100 : 
-           metrics.lcp <= THRESHOLDS.lcp.poor ? 50 : 0,
-      fid: metrics.fid <= THRESHOLDS.fid.good ? 100 : 
-           metrics.fid <= THRESHOLDS.fid.poor ? 50 : 0,
-      cls: metrics.cls <= THRESHOLDS.cls.good ? 100 : 
-           metrics.cls <= THRESHOLDS.cls.poor ? 50 : 0,
-      fcp: metrics.fcp <= THRESHOLDS.fcp.good ? 100 : 
-           metrics.fcp <= THRESHOLDS.fcp.poor ? 50 : 0,
-      ttfb: metrics.ttfb <= THRESHOLDS.ttfb.good ? 100 : 
-            metrics.ttfb <= THRESHOLDS.ttfb.poor ? 50 : 0
-    };
-    
-    return Math.round(
-      (scores.lcp + scores.fid + scores.cls + scores.fcp + scores.ttfb) / 5
-    );
-  };
-
-  // Collect all metrics
-  const collectMetrics = async (): Promise<void> => {
-    setIsCollecting(true);
-    
-    try {
-      const webVitals = await collectWebVitals();
-      const runtimeMetrics = collectRuntimeMetrics();
-      
-      const allMetrics: PerformanceMetrics = {
-        lcp: webVitals.lcp || 0,
-        fid: webVitals.fid || 0,
-        cls: webVitals.cls || 0,
-        fcp: webVitals.fcp || 0,
-        ttfb: webVitals.ttfb || 0,
-        memoryUsage: runtimeMetrics.memoryUsage || 0,
-        jsHeapSize: runtimeMetrics.jsHeapSize || 0,
-        domNodes: runtimeMetrics.domNodes || 0,
-        connectionType: runtimeMetrics.connectionType || 'unknown',
-        effectiveType: runtimeMetrics.effectiveType || 'unknown',
-        rtt: runtimeMetrics.rtt || 0,
-        downlink: runtimeMetrics.downlink || 0,
-        renderTime: performance.now(),
-        bundleSize: 0, // Would be populated by bundle analyzer
-        cacheHitRate: 0 // Would be calculated from cache metrics
-      };
-      
-      setMetrics(allMetrics);
-      setPerformanceScore(calculatePerformanceScore(allMetrics));
-      onMetricsUpdate?.(allMetrics);
-    } catch (error) {
-      console.error('Error collecting performance metrics:', error);
-    } finally {
-      setIsCollecting(false);
+  const getGradeColor = (grade: string) => {
+    switch (grade) {
+      case 'A': return 'text-green-400';
+      case 'B': return 'text-blue-400';
+      case 'C': return 'text-yellow-400';
+      case 'D': return 'text-orange-400';
+      case 'F': return 'text-red-400';
+      default: return 'text-gray-400';
     }
   };
 
-  // Get metric status color
-  const getMetricStatus = (value: number, thresholds: { good: number; poor: number }, reverse = false): string => {
-    if (reverse) {
-      return value <= thresholds.good ? 'text-green-500' : 
-             value <= thresholds.poor ? 'text-yellow-500' : 'text-red-500';
-    }
-    return value >= thresholds.poor ? 'text-red-500' : 
-           value >= thresholds.good ? 'text-yellow-500' : 'text-green-500';
+  const formatTime = (time: number) => {
+    if (time < 1000) return `${Math.round(time)}ms`;
+    return `${(time / 1000).toFixed(1)}s`;
   };
 
-  // Format metric value
-  const formatMetric = (value: number, unit: string): string => {
-    if (unit === 'ms') {
-      return `${Math.round(value)}ms`;
-    }
-    if (unit === 'MB') {
-      return `${value.toFixed(1)}MB`;
-    }
-    if (unit === 'score') {
-      return value.toFixed(3);
-    }
-    return value.toString();
+  const formatBytes = (bytes: number) => {
+    return `${bytes}MB`;
   };
 
-  useEffect(() => {
-    collectMetrics();
-    
-    if (autoRefresh) {
-      intervalRef.current = setInterval(collectMetrics, refreshInterval);
-    }
-    
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [autoRefresh, refreshInterval]);
-
-  if (!metrics) {
+  if (compact) {
     return (
-      <div className={cn('flex items-center gap-2 p-4 bg-gray-50 rounded-lg', className)}>
-        <Activity className="w-4 h-4 animate-spin" />
-        <span className="text-sm text-gray-600">Collecting performance metrics...</span>
+      <div className={cn(
+        'fixed z-50 bg-black/80 backdrop-blur-sm rounded-lg p-2 text-xs text-white border border-white/20',
+        positionClasses[position]
+      )}>
+        <div className="flex items-center space-x-2">
+          <div className={cn('font-bold', getGradeColor(performanceGrade))}>
+            {performanceGrade}
+          </div>
+          <div className="text-green-400">{fps} FPS</div>
+          {metrics.memory && (
+            <div className="text-blue-400">
+              {formatBytes(metrics.memory.used)}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={cn('space-y-4', className)}>
-      {/* Performance Score */}
-      <div className="flex items-center gap-4 p-4 bg-white rounded-lg border shadow-sm">
-        <div className="flex items-center gap-2">
-          <Zap className={cn(
-            'w-5 h-5',
-            performanceScore >= 90 ? 'text-green-500' :
-            performanceScore >= 50 ? 'text-yellow-500' : 'text-red-500'
-          )} />
-          <span className="font-medium">Performance Score</span>
-        </div>
-        <div className={cn(
-          'text-2xl font-bold',
-          performanceScore >= 90 ? 'text-green-500' :
-          performanceScore >= 50 ? 'text-yellow-500' : 'text-red-500'
-        )}>
-          {performanceScore}
-        </div>
-        {isCollecting && (
-          <Activity className="w-4 h-4 animate-spin text-blue-500" />
-        )}
-      </div>
+    <div className={cn(
+      'fixed z-50 bg-black/90 backdrop-blur-sm rounded-lg border border-white/20 text-white transition-all duration-300',
+      positionClasses[position],
+      isExpanded ? 'w-80' : 'w-16 h-16'
+    )}>
+      {/* Toggle Button */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="absolute top-2 right-2 p-2 hover:bg-white/10 rounded-lg transition-colors"
+      >
+        <Activity className="w-4 h-4" />
+      </button>
 
-      {/* Core Web Vitals */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="p-3 bg-white rounded-lg border">
-          <div className="flex items-center gap-2 mb-1">
-            <Clock className="w-4 h-4 text-blue-500" />
-            <span className="text-xs font-medium text-gray-600">LCP</span>
+      {isExpanded ? (
+        <div className="p-4 space-y-4">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-sm">Performance Monitor</h3>
+            <div className="flex items-center space-x-2">
+              <span className={cn('font-bold text-lg', getGradeColor(performanceGrade))}>
+                {performanceGrade}
+              </span>
+              <button
+                onClick={refresh}
+                className="p-1 hover:bg-white/10 rounded transition-colors"
+                title="Refresh metrics"
+              >
+                <TrendingUp className="w-3 h-3" />
+              </button>
+            </div>
           </div>
-          <div className={cn(
-            'text-lg font-bold',
-            getMetricStatus(metrics.lcp, THRESHOLDS.lcp)
-          )}>
-            {formatMetric(metrics.lcp, 'ms')}
-          </div>
-        </div>
-        
-        <div className="p-3 bg-white rounded-lg border">
-          <div className="flex items-center gap-2 mb-1">
-            <Zap className="w-4 h-4 text-green-500" />
-            <span className="text-xs font-medium text-gray-600">FID</span>
-          </div>
-          <div className={cn(
-            'text-lg font-bold',
-            getMetricStatus(metrics.fid, THRESHOLDS.fid)
-          )}>
-            {formatMetric(metrics.fid, 'ms')}
-          </div>
-        </div>
-        
-        <div className="p-3 bg-white rounded-lg border">
-          <div className="flex items-center gap-2 mb-1">
-            <Activity className="w-4 h-4 text-purple-500" />
-            <span className="text-xs font-medium text-gray-600">CLS</span>
-          </div>
-          <div className={cn(
-            'text-lg font-bold',
-            getMetricStatus(metrics.cls, THRESHOLDS.cls)
-          )}>
-            {formatMetric(metrics.cls, 'score')}
-          </div>
-        </div>
-        
-        <div className="p-3 bg-white rounded-lg border">
-          <div className="flex items-center gap-2 mb-1">
-            <Clock className="w-4 h-4 text-orange-500" />
-            <span className="text-xs font-medium text-gray-600">FCP</span>
-          </div>
-          <div className={cn(
-            'text-lg font-bold',
-            getMetricStatus(metrics.fcp, THRESHOLDS.fcp)
-          )}>
-            {formatMetric(metrics.fcp, 'ms')}
-          </div>
-        </div>
-        
-        <div className="p-3 bg-white rounded-lg border">
-          <div className="flex items-center gap-2 mb-1">
-            <Wifi className="w-4 h-4 text-cyan-500" />
-            <span className="text-xs font-medium text-gray-600">TTFB</span>
-          </div>
-          <div className={cn(
-            'text-lg font-bold',
-            getMetricStatus(metrics.ttfb, THRESHOLDS.ttfb)
-          )}>
-            {formatMetric(metrics.ttfb, 'ms')}
-          </div>
-        </div>
-      </div>
 
-      {/* Detailed Metrics */}
-      {showDetails && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="p-4 bg-white rounded-lg border">
-            <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-              <Database className="w-4 h-4" />
-              Memory Usage
-            </h3>
-            <div className="space-y-2 text-sm">
+          {/* Core Metrics */}
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="bg-white/5 rounded-lg p-2">
+              <div className="flex items-center space-x-1 mb-1">
+                <Zap className="w-3 h-3 text-green-400" />
+                <span className="text-gray-300">FPS</span>
+              </div>
+              <div className="font-mono text-green-400">{fps}</div>
+            </div>
+
+            <div className="bg-white/5 rounded-lg p-2">
+              <div className="flex items-center space-x-1 mb-1">
+                <Clock className="w-3 h-3 text-blue-400" />
+                <span className="text-gray-300">FCP</span>
+              </div>
+              <div className="font-mono text-blue-400">
+                {formatTime(metrics.firstContentfulPaint)}
+              </div>
+            </div>
+
+            <div className="bg-white/5 rounded-lg p-2">
+              <div className="flex items-center space-x-1 mb-1">
+                <Clock className="w-3 h-3 text-yellow-400" />
+                <span className="text-gray-300">DCL</span>
+              </div>
+              <div className="font-mono text-yellow-400">
+                {formatTime(metrics.domContentLoaded)}
+              </div>
+            </div>
+
+            {metrics.memory && (
+              <div className="bg-white/5 rounded-lg p-2">
+                <div className="flex items-center space-x-1 mb-1">
+                  <MemoryStick className="w-3 h-3 text-purple-400" />
+                  <span className="text-gray-300">Memory</span>
+                </div>
+                <div className="font-mono text-purple-400">
+                  {formatBytes(metrics.memory.used)}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Render Performance */}
+          <div className="bg-white/5 rounded-lg p-2">
+            <div className="text-xs text-gray-300 mb-1">Render Performance</div>
+            <div className="flex justify-between text-xs">
+              <span>Max Render Time:</span>
+              <span className="font-mono">{renderTime.toFixed(2)}ms</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span>Components Rendered:</span>
+              <span className="font-mono">{componentCount}</span>
+            </div>
+          </div>
+
+          {/* Network Timing */}
+          <div className="bg-white/5 rounded-lg p-2">
+            <div className="text-xs text-gray-300 mb-1">Network Timing</div>
+            <div className="space-y-1 text-xs">
               <div className="flex justify-between">
-                <span className="text-gray-600">Used Heap:</span>
-                <span className="font-medium">{formatMetric(metrics.memoryUsage, 'MB')}</span>
+                <span>DNS Lookup:</span>
+                <span className="font-mono">{formatTime(metrics.dnsLookup)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Total Heap:</span>
-                <span className="font-medium">{formatMetric(metrics.jsHeapSize, 'MB')}</span>
+                <span>TCP Connect:</span>
+                <span className="font-mono">{formatTime(metrics.tcpConnect)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">DOM Nodes:</span>
-                <span className="font-medium">{metrics.domNodes}</span>
+                <span>Server Response:</span>
+                <span className="font-mono">{formatTime(metrics.serverResponse)}</span>
               </div>
             </div>
           </div>
-          
-          <div className="p-4 bg-white rounded-lg border">
-            <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-              <Wifi className="w-4 h-4" />
-              Network Info
-            </h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Connection:</span>
-                <span className="font-medium">{metrics.connectionType}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Effective Type:</span>
-                <span className="font-medium">{metrics.effectiveType}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">RTT:</span>
-                <span className="font-medium">{metrics.rtt}ms</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Downlink:</span>
-                <span className="font-medium">{metrics.downlink} Mbps</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="p-4 bg-white rounded-lg border">
-            <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-              <Activity className="w-4 h-4" />
-              Runtime Metrics
-            </h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Render Time:</span>
-                <span className="font-medium">{formatMetric(metrics.renderTime, 'ms')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Cache Hit Rate:</span>
-                <span className="font-medium">{metrics.cacheHitRate}%</span>
+
+          {/* Memory Details */}
+          {metrics.memory && (
+            <div className="bg-white/5 rounded-lg p-2">
+              <div className="text-xs text-gray-300 mb-1">Memory Usage</div>
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span>Used:</span>
+                  <span className="font-mono">{formatBytes(metrics.memory.used)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total:</span>
+                  <span className="font-mono">{formatBytes(metrics.memory.total)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Limit:</span>
+                  <span className="font-mono">{formatBytes(metrics.memory.limit)}</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-1 mt-1">
+                  <div 
+                    className="bg-purple-400 h-1 rounded-full transition-all duration-300"
+                    style={{ width: `${(metrics.memory.used / metrics.memory.limit) * 100}%` }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Recommendations */}
+          {recommendations.length > 0 && (
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-2">
+              <div className="flex items-center space-x-1 mb-2">
+                <AlertTriangle className="w-3 h-3 text-orange-400" />
+                <span className="text-xs text-orange-400 font-medium">Recommendations</span>
+              </div>
+              <div className="space-y-1">
+                {recommendations.slice(0, 2).map((rec, index) => (
+                  <div key={index} className="text-xs text-orange-200">
+                    • {rec}
+                  </div>
+                ))}
+                {recommendations.length > 2 && (
+                  <div className="text-xs text-orange-300">
+                    +{recommendations.length - 2} more...
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-      )}
-      
-      {/* Performance Warnings */}
-      {performanceScore < 50 && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-center gap-2 text-red-800">
-            <AlertTriangle className="w-4 h-4" />
-            <span className="font-medium">Performance Issues Detected</span>
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <div className={cn('font-bold text-lg', getGradeColor(performanceGrade))}>
+            {performanceGrade}
           </div>
-          <p className="text-sm text-red-700 mt-1">
-            Your application is experiencing performance issues. Consider optimizing images, 
-            reducing bundle size, or implementing code splitting.
-          </p>
         </div>
       )}
     </div>

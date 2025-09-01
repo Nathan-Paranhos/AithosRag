@@ -34,6 +34,63 @@ const validateChatRequest = (req, res, next) => {
 };
 
 // Chat sem streaming
+/**
+ * @swagger
+ * /api/chat:
+ *   post:
+ *     summary: Enviar mensagem para IA
+ *     description: Envia mensagens para a IA e recebe resposta (sem streaming)
+ *     tags: [Chat]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ChatRequest'
+ *           examples:
+ *             simple:
+ *               summary: Mensagem simples
+ *               value:
+ *                 messages:
+ *                   - role: "user"
+ *                     content: "Olá, como você pode me ajudar?"
+ *                 model: "llama3-8b-8192"
+ *             conversation:
+ *               summary: Conversa com contexto
+ *               value:
+ *                 messages:
+ *                   - role: "system"
+ *                     content: "Você é um assistente útil."
+ *                   - role: "user"
+ *                     content: "Explique sobre inteligência artificial"
+ *                 model: "mixtral-8x7b-32768"
+ *                 temperature: 0.7
+ *     responses:
+ *       200:
+ *         description: Resposta da IA gerada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ChatResponse'
+ *       400:
+ *         description: Dados de entrada inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       429:
+ *         description: Rate limit excedido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Erro interno do servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.post('/', async (req, res) => {
   const startTime = Date.now();
   let modelUsed = null;
@@ -182,6 +239,59 @@ router.post('/chat',
 );
 
 // POST /api/chat/stream - Enviar mensagem com streaming
+/**
+ * @swagger
+ * /api/chat/stream:
+ *   post:
+ *     summary: Chat com streaming
+ *     description: Envia mensagens para a IA e recebe resposta em tempo real (streaming)
+ *     tags: [Chat]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               messages:
+ *                 type: array
+ *                 items:
+ *                   $ref: '#/components/schemas/ChatMessage'
+ *               model:
+ *                 type: string
+ *                 description: Modelo de IA a ser usado
+ *                 example: "llama3-8b-8192"
+ *               strategy:
+ *                 type: string
+ *                 description: Estratégia de balanceamento
+ *                 example: "round_robin"
+ *               category:
+ *                 type: string
+ *                 description: Categoria da conversa
+ *                 example: "general"
+ *             required:
+ *               - messages
+ *     responses:
+ *       200:
+ *         description: Stream de resposta da IA
+ *         content:
+ *           text/event-stream:
+ *             schema:
+ *               type: string
+ *               description: Server-Sent Events com chunks da resposta
+ *       400:
+ *         description: Dados de entrada inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Erro interno do servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.post('/stream', async (req, res) => {
   const startTime = Date.now();
   let selectedModel = null;

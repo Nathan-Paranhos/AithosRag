@@ -3,7 +3,7 @@ import { Button } from './ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './ui/Card';
 import { Input, SearchInput } from './ui/Input';
 import { ThemeToggle } from './ui/ThemeToggle';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '../hooks/useThemeContext';
 import { Search, Heart, Star, Settings, User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
 const DesignSystemDemo: React.FC = () => {

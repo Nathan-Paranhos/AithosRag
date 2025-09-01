@@ -11,6 +11,9 @@ import fs from 'fs';
 import cluster from 'cluster';
 import os from 'os';
 
+// Swagger imports
+import { specs, swaggerUi } from './swagger.js';
+
 // Enterprise Security Middleware
 import AuditService from './microservices/audit/auditService.js';
 import { inputSanitizer } from './middleware/inputSanitization.js';
@@ -156,6 +159,84 @@ app.use((req, res, next) => {
   next();
 });
 
+// Health check endpoint (deve vir antes de outros middlewares)
+app.get('/health', (req, res) => {
+  const healthStatus = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    version: process.version,
+    environment: process.env.NODE_ENV || 'development',
+    services: {
+      groq: groqService ? 'available' : 'unavailable',
+      cache: cacheSystem ? 'available' : 'unavailable',
+      metrics: metricsSystem ? 'available' : 'unavailable'
+    }
+  };
+  
+  // Check if critical services are running
+  const isHealthy = groqService && cacheSystem && metricsSystem;
+  
+  if (isHealthy) {
+    res.status(200).json(healthStatus);
+  } else {
+    res.status(503).json({
+      ...healthStatus,
+      status: 'degraded',
+      message: 'Some services are unavailable'
+    });
+  }
+});
+
+// Detailed health check endpoint
+app.get('/health/detailed', async (req, res) => {
+  try {
+    const healthData = {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      cpu: process.cpuUsage(),
+      version: process.version,
+      environment: process.env.NODE_ENV || 'development',
+      services: {
+        groq: {
+          status: groqService ? 'available' : 'unavailable',
+          models: groqService ? await groqService.getAvailableModels().catch(() => []) : []
+        },
+        cache: {
+          status: cacheSystem ? 'available' : 'unavailable',
+          size: cacheSystem ? cacheSystem.getStats().size : 0,
+          hitRate: cacheSystem ? cacheSystem.getStats().hitRate : 0
+        },
+        metrics: {
+          status: metricsSystem ? 'available' : 'unavailable',
+          requests: metricsSystem ? metricsSystem.getMetrics().totalRequests : 0
+        },
+        loadBalancer: {
+          status: loadBalancer ? 'available' : 'unavailable'
+        },
+        healthMonitor: {
+          status: 'available',
+          metrics: healthMonitor.getMetrics()
+        }
+      },
+      database: {
+        status: 'not_configured' // Placeholder for future database integration
+      }
+    };
+    
+    res.status(200).json(healthData);
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      error: error.message
+    });
+  }
+});
+
 // Middleware de análise de requisição e seleção de modelo
 app.use('/api/chat', modelSelector.analyzeRequest());
 app.use('/api/chat', modelSelector.logSelection());
@@ -231,8 +312,19 @@ app.use('/api/fallback', (req, res, next) => {
   next();
 });
 
+app.use('/api/groq-advanced', (req, res, next) => {
+  req.groqService = groqService;
+  req.modelSelector = modelSelector;
+  req.loadBalancer = loadBalancer;
+  req.fallbackSystem = fallbackSystem;
+  req.metricsSystem = metricsSystem;
+  req.cacheSystem = cacheSystem;
+  next();
+});
+
 // Importar rotas
 import chatRoutes from './routes/chat.js';
+import groqAdvancedRoutes from './routes/groqAdvanced.js';
 import loadBalancerRoutes from './routes/loadBalancer.js';
 import fallbackRoutes from './routes/fallback.js';
 import metricsRoutes from './routes/metrics.js';
@@ -275,6 +367,7 @@ app.use('/api/chat', (req, res, next) => {
   });
 });
 app.use('/api/chat', defaultUserRateLimit.action('chat'), chatRoutes);
+app.use('/api/groq-advanced', defaultUserRateLimit.action('groq-advanced'), groqAdvancedRoutes);
 
 app.use('/api/loadbalancer', loadBalancerRoutes);
 app.use('/api/fallback', fallbackRoutes);
@@ -283,7 +376,50 @@ app.use('/api/cache', cacheRoutes);
 app.use('/api/ratelimit', rateLimitRoutes);
 app.use('/api/audit', auditRoutes);
 
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Aithos RAG API Documentation',
+  customfavIcon: '/favicon.ico',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    docExpansion: 'none',
+    filter: true,
+    showExtensions: true,
+    showCommonExtensions: true,
+    tryItOutEnabled: true
+  }
+}));
+
+// Swagger JSON endpoint
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(specs);
+});
+
 // Health check endpoints
+/**
+ * @swagger
+ * /api/health:
+ *   get:
+ *     summary: Verificação de saúde da API
+ *     description: Retorna o status de saúde geral da API e seus serviços
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: API funcionando normalmente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/HealthStatus'
+ *       503:
+ *         description: API com problemas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 app.get('/api/health', (req, res) => {
   const healthStatus = healthMonitor.getHealthStatus();
   const serviceStatus = fallbackSystem.getServiceStatus();
@@ -304,6 +440,35 @@ app.get('/api/health', (req, res) => {
 });
 
 // Service status endpoint
+/**
+ * @swagger
+ * /api/health/services:
+ *   get:
+ *     summary: Status dos serviços
+ *     description: Retorna o status detalhado de todos os serviços da API
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Status dos serviços obtido com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 services:
+ *                   type: object
+ *                 healthChecks:
+ *                   type: object
+ *                 fallbacksAvailable:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ */
 app.get('/api/health/services', (req, res) => {
   const serviceStatus = fallbackSystem.getServiceStatus();
   const healthStatus = healthMonitor.getHealthStatus();
@@ -371,6 +536,45 @@ app.get('/health/rate-limits', (req, res) => {
 });
 
 // Rota para validar API Key
+/**
+ * @swagger
+ * /api/validate:
+ *   get:
+ *     summary: Validar configuração da API
+ *     description: Verifica se a API está configurada corretamente e retorna modelos disponíveis
+ *     tags: [Configuration]
+ *     responses:
+ *       200:
+ *         description: Configuração validada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 configured:
+ *                   type: boolean
+ *                   example: true
+ *                 modelsCount:
+ *                   type: integer
+ *                   example: 5
+ *                 models:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["llama3-8b-8192", "mixtral-8x7b-32768"]
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       500:
+ *         description: Erro interno do servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 app.get('/api/validate', (req, res) => {
   try {
     const hasApiKey = !!process.env.GROQ_API_KEY;
@@ -394,6 +598,37 @@ app.get('/api/validate', (req, res) => {
 });
 
 // Rota raiz
+/**
+ * @swagger
+ * /:
+ *   get:
+ *     summary: Informações da API
+ *     description: Retorna informações básicas sobre a API Aithos RAG
+ *     tags: [General]
+ *     responses:
+ *       200:
+ *         description: Informações da API obtidas com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Aithos RAG API está funcionando!"
+ *                 version:
+ *                   type: string
+ *                   example: "1.0.0"
+ *                 endpoints:
+ *                   type: object
+ *                   properties:
+ *                     health:
+ *                       type: string
+ *                       example: "/api/health"
+ *                     chat:
+ *                       type: string
+ *                       example: "/api/chat"
+ */
 app.get('/', (req, res) => {
   res.json({
     message: 'Aithos RAG API está funcionando!',

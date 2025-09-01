@@ -1,6 +1,6 @@
 import React from 'react';
 import { Moon, Sun, Monitor } from '../../utils/icons.tsx';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme } from '../../hooks/useThemeContext';
 import { Button } from './Button';
 import { cn } from '../../utils/cn';
 

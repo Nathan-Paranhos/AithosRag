@@ -18,14 +18,13 @@ class AuthService extends EventEmitter {
       refreshTokenExpiresIn: options.refreshTokenExpiresIn || '7d',
       bcryptRounds: options.bcryptRounds || 12,
       maxLoginAttempts: options.maxLoginAttempts || 5,
-      lockoutDuration: options.lockoutDuration || 15 * 60 * 1000, // 15 minutes
+      lockoutDuration: options.lockoutDuration || 15 * 60 * 1000, 
       ...options
     };
 
     this.app = express();
     this.server = null;
     
-    // In-memory storage (in production, use a database)
     this.users = new Map();
     this.refreshTokens = new Map();
     this.loginAttempts = new Map();
@@ -37,7 +36,6 @@ class AuthService extends EventEmitter {
   }
 
   setupMiddleware() {
-    // Security middleware
     this.app.use(helmet());
     this.app.use(cors({
       origin: process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -49,8 +47,8 @@ class AuthService extends EventEmitter {
 
     // Rate limiting
     const authLimiter = rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 10, // limit each IP to 10 requests per windowMs
+      windowMs: 15 * 60 * 1000,
+      max: 10, 
       message: {
         error: 'Too many authentication attempts, please try again later'
       },

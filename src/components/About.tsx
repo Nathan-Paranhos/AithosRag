@@ -113,6 +113,11 @@ const About: React.FC = () => {
               <div className="text-primary-100/80">Suporte Técnico</div>
             </div>
           </div>
+          
+          {/* Aithos Tech Branding */}
+          <div className="mt-12">
+            <p className="text-sm text-primary-100/60">Developer by Aithos Tech - Transformando o futuro com IA</p>
+          </div>
         </div>
       </div>
     </section>
